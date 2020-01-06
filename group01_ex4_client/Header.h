@@ -1,5 +1,9 @@
 #pragma once
 
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
 #define MAX_USERNAME_LENGTH 21  // 20 + \0
 #define MAX_IP_LENGTH 16 // 255.255.255.255, 15 + 1
 #define MAX_PORT_LENGTH 5 // 8888, + 1

@@ -20,8 +20,8 @@
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>15.0</VCProjectVersion>
-    <ProjectGuid>{0D899926-7D0B-4317-97BC-FFDC3691982E}</ProjectGuid>
-    <RootNamespace>group01ex4server</RootNamespace>
+    <ProjectGuid>{99314E99-D7DE-4008-938F-E713FE2EA257}</ProjectGuid>
+    <RootNamespace>group01ex4client</RootNamespace>
     <WindowsTargetPlatformVersion>10.0.17763.0</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
@@ -118,6 +118,10 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="..\Share\shared_example.c" />
+    <ClCompile Include="main.c" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="Header.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

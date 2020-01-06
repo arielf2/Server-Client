@@ -13,16 +13,24 @@
       <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
       <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
     </Filter>
-    <Filter Include="Shared Source Files">
-      <UniqueIdentifier>{6c67a310-c722-4f64-8850-263955b91c5e}</UniqueIdentifier>
-    </Filter>
     <Filter Include="Shared Header Files">
-      <UniqueIdentifier>{0ce2f4cd-3f46-43de-9088-6d18ad4f815c}</UniqueIdentifier>
+      <UniqueIdentifier>{b2fc821a-42ab-46a0-a11a-e3ec00ab32eb}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Shared Source Files">
+      <UniqueIdentifier>{fa33015f-9252-4305-a1ac-9f95bfe524c7}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\Share\shared_example.c">
       <Filter>Shared Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="main.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="Header.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

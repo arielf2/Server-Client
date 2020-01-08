@@ -8,8 +8,6 @@
 #define MAX_IP_LENGTH 16 // 255.255.255.255, 15 + 1
 #define MAX_PORT_LENGTH 5 // 8888, + 1
 
-
-
 /*	Description: Initial parser for the command line arguments
 	Parameters:  ip_address: string representing the ip address, to be updated in the function
 				 port: string representing the port, to be updated in the function

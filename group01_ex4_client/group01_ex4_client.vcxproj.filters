@@ -30,6 +30,9 @@
     <ClCompile Include="..\Share\SharedFuncs.c">
       <Filter>Shared Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="SendReceive.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Header.h">
@@ -40,6 +43,9 @@
     </ClInclude>
     <ClInclude Include="..\Share\SharedFuncs.h">
       <Filter>Shared Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="SendReceive.h">
+      <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>

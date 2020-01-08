@@ -13,7 +13,7 @@ int GetLen(char *str) {
 }
 
 
-int Compare(char *str_a, char *str_b) {
+int CompareProtocolMessages(char *str_a, char *str_b) {
 	
 	int i = 0;
 	int len_a = GetLen(str_a);

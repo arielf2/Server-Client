@@ -1,6 +1,7 @@
 
 #include "Client.h"
 
+
 // Global Socket
 SOCKET m_socket;
 
@@ -51,7 +52,6 @@ void MainClient(char* ip_address, char* port, char* username)
 		AF_INET is the Internet address family.
 	*/
 
-
 	// Call the connect function, passing the created socket and the sockaddr_in structure as parameters. 
 	// Check for general errors.
 	while (connect(m_socket, (SOCKADDR*)& clientService, sizeof(clientService)) == SOCKET_ERROR) {
@@ -62,10 +62,26 @@ void MainClient(char* ip_address, char* port, char* username)
 
 		if (strcmp(user_resp, "2") == 0) {
 			WSACleanup();
-			return;
+			//return;
+			break;
 		}
 	}
 
+	/* If we are here - we managed to connect to the server */
+
+	//concat client request to username
+	char cl_req[MAX_CLIENT_REQUEST_LEN + 1] = "CLIENT_REQUEST:";
+	strcat_s(cl_req, MAX_CLIENT_REQUEST_LEN + 1, username);
+	printf("%s\n", cl_req);
+
 	
+	char test_1[4] = { 'a', 'b', 'c', '\n' };
+	char test_2[5] = { 'a', 'd', 'c', '\0', '\n' };
+	char test_3[4] = { 'a', 'b', 'c', '\n' };
+	printf("%d", GetLen(test_1));
+	printf("%d\n%d\n%d\n", Compare(test_1, test_2), Compare(test_1, test_3), Compare(test_2, test_3));
+	// Send client request
+	
+	//strcpy_s(cl_req, MAX_CLIENT_REQUEST_LEN + 1, "CLIENT_REQUEST:")
 }
 

@@ -1,6 +1,7 @@
 #include "Header.h"
 #include "Client.h"
 
+
 int main(int argc, char* argv[]) {
 
 	char username[MAX_USERNAME_LENGTH], port[MAX_PORT_LENGTH], ip_address[MAX_IP_LENGTH];
@@ -29,5 +30,6 @@ int ParseCommand(char* ip_address, char* port, char* username, char* arguments[]
 		printf("Error while receiving username from command line\n");
 		err = 1;
 	}
+	return err;
 
 }

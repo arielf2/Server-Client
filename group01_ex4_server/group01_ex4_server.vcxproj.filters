@@ -21,8 +21,8 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="..\Share\shared_example.c">
-      <Filter>Shared Source Files</Filter>
+    <ClCompile Include="main.c">
+      <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
 </Project>

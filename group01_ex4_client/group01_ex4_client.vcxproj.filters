@@ -21,14 +21,14 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="..\Share\shared_example.c">
-      <Filter>Shared Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="main.c">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="Client.c">
       <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Share\SharedFuncs.c">
+      <Filter>Shared Source Files</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -37,6 +37,9 @@
     </ClInclude>
     <ClInclude Include="Client.h">
       <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Share\SharedFuncs.h">
+      <Filter>Shared Header Files</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>

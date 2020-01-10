@@ -7,11 +7,18 @@ SOCKET m_socket;
 
 void MainClient(char* ip_address, char* port, char* username)
 {
-	
 	SOCKADDR_IN clientService;
 	HANDLE hThread[2];
+
+	int user_exit = 0;
+	// updating the client struct
 	client_thread_param thread_param;
+
 	strcpy_s(thread_param.username, MAX_USERNAME_LENGTH, username);
+	strcpy_s(thread_param.ip_address, MAX_IP_LENGTH, ip_address);
+	strcpy_s(thread_param.port, MAX_PORT_LENGTH, port);
+
+
 
 	// Initialize Winsock.
 	WSADATA wsaData;
@@ -54,19 +61,8 @@ void MainClient(char* ip_address, char* port, char* username)
 	// Call the connect function, passing the created socket and the sockaddr_in structure as parameters. 
 	// Check for general errors.
 	printf("Trying to connect to port %d\n", clientService.sin_port);
-	while (connect(m_socket, (SOCKADDR*)& clientService, sizeof(clientService)) == SOCKET_ERROR) {
-		//(connect(m_socket, (SOCKADDR*)& clientService, sizeof(clientService)) == SOCKET_ERROR) {
-		printf("Failed connection, error %ld\n", WSAGetLastError());
-		printf("Failed connecting to server on %s:%s.\nChoose what to do next:\n1. Try to reconnect\n2. Exit\n", ip_address, port);
-		char user_resp[2];
-		gets_s(user_resp, 2);
 
-		if (strcmp(user_resp, "2") == 0) {
-			WSACleanup();
-			//return; 
-			break; //break just so we can finish the program. Currently can't connect to server. Change back to return
-		}
-	}
+	user_exit = TryConnection(0, &clientService, ip_address, port);
 
 	/* If we are here - we managed to connect to the server */
 
@@ -84,8 +80,37 @@ void MainClient(char* ip_address, char* port, char* username)
 static DWORD RecvDataThread(LPVOID lpParam)
 {
 
-	
+	if (NULL == lpParam) {
+		printf("Received bad parameters in Client Send Data Thread");
+		exit(1);
+	}
+
+	client_thread_param *client_params = (client_thread_param *)lpParam;
 	TransferResult_t RecvRes;
+	int different;
+
+	//Approve/Deny Client
+	char *AcceptedStr = NULL;
+	RecvRes = ReceiveString(&AcceptedStr, m_socket);
+	if (RecvRes == TRNS_FAILED)
+	{
+		printf("Socket error while trying to write data to socket\n");
+		return 0x555;
+	}
+	else if (RecvRes == TRNS_DISCONNECTED)
+	{
+		printf("Server closed connection. Bye!\n");
+		return 0x555;
+	}
+	else {
+		if (CompareProtocolMessages(AcceptedStr, CLIENT_APPROVED) == 0) {
+			// wait for main menu message from server
+		}
+		else if (CompareProtocolMessages(AcceptedStr, CLIENT_DENIED) == 0) {
+			//TryConnection(1, x, client_params->ip_address, client_params->port);
+		}
+	}
+
 
 
 	while (1)
@@ -127,15 +152,13 @@ static DWORD SendDataThread(LPVOID lpParam)
 
 	client_thread_param *client_params = (client_thread_param *)lpParam;
 	
-
+	//Client Request
 	char ClientRequest[MAX_CLIENT_REQUEST_LEN + 1] = CLIENT_REQUEST;  // CLIENT_REQUEST:
-
 	strcat_s(ClientRequest, MAX_CLIENT_REQUEST_LEN + 1, client_params->username); //CLIENT_REQUEST:Ariel
-
 	ClientRequest[strlen(ClientRequest)] = '\n'; // Turn the string to the correct protocol message, that ends with '\n' instead of '\0'
 	
-	printf("length of str is %d", GetLen(ClientRequest));
-	printf("\nCompare %d", CompareProtocolMessages(ClientRequest, "IAMBCD\n"));
+	//printf("length of str is %d", GetLen(ClientRequest));
+	//printf("\nCompare %d", CompareProtocolMessages(ClientRequest, "IAMBCD\n"));
 
 	char SendStr[256];
 	TransferResult_t SendRes;
@@ -156,3 +179,29 @@ static DWORD SendDataThread(LPVOID lpParam)
 		}
 	}
 }
+
+
+int TryConnection(int server_denied, SOCKADDR_IN* clientService, char* ip_address, char* port) {
+	
+	int user_decision = 0;
+
+	while (connect(m_socket, (SOCKADDR*)& clientService, sizeof(clientService)) == SOCKET_ERROR) {
+		printf("Failed connection, error %ld\n", WSAGetLastError());
+		if (server_denied == 0) // this is a first-time connection {
+			printf("Failed connecting to server on %s:%s.\nChoose what to do next:\n1. Try to reconnect\n2. Exit\n", ip_address, port);
+		else  // server_denied == 1
+			printf("Server on %s:%s denied the connection request.\nChoose what to do next:\n1. Try to reconnect\n2. Exit\n", ip_address, port);
+
+		char user_resp[2];
+		gets_s(user_resp, 2);
+
+		if (strcmp(user_resp, "2") == 0) {
+			WSACleanup();
+			//return; 
+			user_decision = 1;
+			break; //break just so we can finish the program. Currently can't connect to server. Change back to return
+		}
+		return user_decision;
+	}
+}
+

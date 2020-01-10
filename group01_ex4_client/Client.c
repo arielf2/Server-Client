@@ -17,9 +17,7 @@ void MainClient(char* ip_address, char* port, char* username)
 	strcpy_s(thread_param.username, MAX_USERNAME_LENGTH, username);
 	strcpy_s(thread_param.ip_address, MAX_IP_LENGTH, ip_address);
 	strcpy_s(thread_param.port, MAX_PORT_LENGTH, port);
-
-
-
+	thread_param.clientService = &clientService;
 	// Initialize Winsock.
 	WSADATA wsaData;
 
@@ -30,14 +28,8 @@ void MainClient(char* ip_address, char* port, char* username)
 
 	//Call the socket function and return its value to the m_socket variable. 
 	// Create a socket.
-	m_socket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
 
-	// Check for errors to ensure that the socket is a valid socket.
-	if (m_socket == INVALID_SOCKET) {
-		printf("Error at socket(): %ld\n", WSAGetLastError());
-		WSACleanup();
-		return;
-	}
+	m_socket = CreateAndCheckSocket();
 	/*
 	 The parameters passed to the socket function can be changed for different implementations.
 	 Error detection is a key part of successful networking code.
@@ -62,12 +54,72 @@ void MainClient(char* ip_address, char* port, char* username)
 	// Check for general errors.
 	printf("Trying to connect to port %d\n", clientService.sin_port);
 
-	user_exit = TryConnection(0, &clientService, ip_address, port);
+	int wait = 0;
+	int server_resp = 0;
+	int connect_res = 0;
+
+	while (1) {
+		//try connection
+		connect_res = connect(m_socket, (SOCKADDR*)& clientService, sizeof(clientService));
+		if (connect_res == SOCKET_ERROR) {
+			printf("Failed connection, error %ld\n", WSAGetLastError());
+			if (ReconnectMenu(0, ip_address, port) == 1) //try reconnecting
+				continue;
+			else break; // user wants to exit
+		}
+		
+		else { 	//connection successfull:
+			//send client request
+			if (SendClientRequest(username) != 0) {
+				printf("couldnt write client request to socket\n");
+				exit(1);
+			}
+			//else - successful write to socket, get server response.
+
+			//Approve/Deny Client
+			char *AcceptedStr = NULL;
+			wait = WaitForMessage(&AcceptedStr);
+			
+			if (wait == 1) { // TIMEOUT - show menu
+				closesocket(m_socket); //disconnect from server
+				if (ReconnectMenu(2, ip_address, port) == 1) {
+					m_socket = CreateAndCheckSocket();
+					continue;
+				}
+				//else - got 2 exit from user. 
+				printf("Bye\n");
+				return;
+			}
+
+			//else - wait = 0 so we received a valid message
+
+			server_resp = CheckServerResponse(AcceptedStr);
+			if (server_resp == 1) { //server denied - show menu
+				closesocket(m_socket); //disconnect from server
+				if (ReconnectMenu(2, ip_address, port) == 1) {
+					m_socket = CreateAndCheckSocket();
+					continue;
+				}
+				//else - got 2 exit from user
+				printf("Bye\n");
+				return;
+			}
+
+		
+		}
+
+			
+		
+			
+	}
+	//user_exit = ReconnectMenu(0, &clientService, ip_address, port);
 
 	/* If we are here - we managed to connect to the server */
 
-	hThread[0] = CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)SendDataThread, &thread_param, 0, NULL);
-	hThread[1] = CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)RecvDataThread, NULL, 0, NULL);
+	//hThread[0] = CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)SendDataThread, &thread_param, 0, NULL);
+	//hThread[1] = CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)RecvDataThread, NULL, 0, NULL);
+
+
 
 	//concat client request to username
 	
@@ -81,35 +133,31 @@ static DWORD RecvDataThread(LPVOID lpParam)
 {
 
 	if (NULL == lpParam) {
-		printf("Received bad parameters in Client Send Data Thread");
+		printf("Received bad parameters in Client Recv Data Thread");
 		exit(1);
 	}
 
 	client_thread_param *client_params = (client_thread_param *)lpParam;
 	TransferResult_t RecvRes;
-	int different;
+	int wait = 0;
 
 	//Approve/Deny Client
 	char *AcceptedStr = NULL;
-	RecvRes = ReceiveString(&AcceptedStr, m_socket);
-	if (RecvRes == TRNS_FAILED)
+	wait = WaitForMessage(&AcceptedStr);
+
+	if (wait == 1) // TIMEOUT - try to reconnect
 	{
-		printf("Socket error while trying to write data to socket\n");
-		return 0x555;
+		ReconnectMenu(2, client_params->clientService, client_params->ip_address, client_params->port);
 	}
-	else if (RecvRes == TRNS_DISCONNECTED)
-	{
-		printf("Server closed connection. Bye!\n");
-		return 0x555;
+	//RecvRes = ReceiveString(&AcceptedStr, m_socket);
+	if (CompareProtocolMessages(AcceptedStr, CLIENT_APPROVED) == 0) {
+		// wait for main menu message from server
 	}
-	else {
-		if (CompareProtocolMessages(AcceptedStr, CLIENT_APPROVED) == 0) {
-			// wait for main menu message from server
-		}
-		else if (CompareProtocolMessages(AcceptedStr, CLIENT_DENIED) == 0) {
-			//TryConnection(1, x, client_params->ip_address, client_params->port);
-		}
+	else if (CompareProtocolMessages(AcceptedStr, CLIENT_DENIED) == 0) {
+		ReconnectMenu(1, client_params->clientService, client_params->ip_address, client_params->port);
 	}
+
+	free(AcceptedStr);
 
 
 
@@ -180,28 +228,111 @@ static DWORD SendDataThread(LPVOID lpParam)
 	}
 }
 
-
-int TryConnection(int server_denied, SOCKADDR_IN* clientService, char* ip_address, char* port) {
+int ReconnectMenu(int reason_for_connect, char* ip_address, char* port) {
 	
 	int user_decision = 0;
+	if (reason_for_connect == 0) // this is a first-time connection {
+		printf("Failed connecting to server on %s:%s.\nChoose what to do next:\n1. Try to reconnect\n2. Exit\n", ip_address, port);
+	else if (reason_for_connect == 1) // reason_for_connect == 1
+		printf("Server on %s:%s denied the connection request.\nChoose what to do next:\n1. Try to reconnect\n2. Exit\n", ip_address, port);
+	else //reason_for_connect = 2 - timeout or connection lost
+		printf("Connection to server on %s:%s has been lost.\nChoose what to do next:\n1. Try to reconnect\n2. Exit\n", ip_address, port);
+	
+	char user_resp[2];
+	gets_s(user_resp, 2);
 
-	while (connect(m_socket, (SOCKADDR*)& clientService, sizeof(clientService)) == SOCKET_ERROR) {
-		printf("Failed connection, error %ld\n", WSAGetLastError());
-		if (server_denied == 0) // this is a first-time connection {
-			printf("Failed connecting to server on %s:%s.\nChoose what to do next:\n1. Try to reconnect\n2. Exit\n", ip_address, port);
-		else  // server_denied == 1
-			printf("Server on %s:%s denied the connection request.\nChoose what to do next:\n1. Try to reconnect\n2. Exit\n", ip_address, port);
-
-		char user_resp[2];
-		gets_s(user_resp, 2);
-
-		if (strcmp(user_resp, "2") == 0) {
-			WSACleanup();
-			//return; 
-			user_decision = 1;
-			break; //break just so we can finish the program. Currently can't connect to server. Change back to return
-		}
-		return user_decision;
+	if (strcmp(user_resp, "2") == 0) {
+		WSACleanup();			//return; 
+		user_decision = 2;
 	}
+
+	else //user decision = 1 - try to reconnect
+		user_decision = 1;
+
+	return user_decision;
 }
 
+int WaitForMessage(char **AcceptedString) {
+	int error = 0;
+
+	fd_set set;
+	struct timeval time;
+	time.tv_sec = SERVER_WAIT_TIMEOUT;
+	time.tv_usec = 0;
+
+	FD_ZERO(&set);
+	FD_SET(m_socket, &set);
+
+	//char *AcceptedStr = NULL;
+	TransferResult_t RecvRes;
+
+	error = select(0, &set, NULL, NULL, &time);
+
+	if (error == 0) {
+		printf("TIMEOUT: 15 seconds passed and no response from server, in WaitForMessage, ReceiveData client thread\n");
+		return 1;
+	}
+	RecvRes = ReceiveString(&AcceptedString, m_socket);
+
+	if (RecvRes == TRNS_FAILED)
+	{
+		printf("Socket error while trying to write data to socket\n");
+		return 0x555;
+	}
+	else if (RecvRes == TRNS_DISCONNECTED)
+	{
+		printf("Server closed connection. Bye!\n");
+		return 0x555;
+	}
+	else
+	{
+		printf("accepted string is: %s\n", AcceptedString);
+	}
+
+	//free(AcceptedStr);
+
+}
+
+int SendClientRequest(char *username) {
+	char ClientRequest[MAX_CLIENT_REQUEST_LEN + 1] = CLIENT_REQUEST;  // CLIENT_REQUEST:
+	TransferResult_t SendRes;
+
+	strcat_s(ClientRequest, MAX_CLIENT_REQUEST_LEN + 1, username); //CLIENT_REQUEST:Ariel
+	ClientRequest[strlen(ClientRequest)] = '\n'; // Turn the string to the correct protocol message, that ends with '\n' instead of '\0'
+
+	SendRes = SendString(ClientRequest, m_socket);
+
+	if (SendRes == TRNS_FAILED)
+	{
+		printf("Socket error while trying to write data to socket\n");
+		return 0x555;
+	}
+
+	//else - success, return 0
+	return 0;
+}
+
+SOCKET CreateAndCheckSocket() {
+	m_socket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+	if (m_socket == INVALID_SOCKET) {
+		printf("Error at socket(): %ld\n", WSAGetLastError());
+		WSACleanup();
+		return;
+	}
+	return m_socket;
+}
+
+int CheckServerResponse(char* response) {
+	//if (response == NULL) {
+	//	return 1;
+	//}
+	if (CompareProtocolMessages(response, CLIENT_APPROVED) == 0) {
+		// wait for main menu message from server
+	}
+	else if (CompareProtocolMessages(response, CLIENT_DENIED) == 0) {
+		return 1;
+	}
+
+	free(response);
+	return 0;
+}

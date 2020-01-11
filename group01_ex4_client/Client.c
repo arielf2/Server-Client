@@ -9,15 +9,9 @@ void MainClient(char* ip_address, char* port, char* username)
 {
 	SOCKADDR_IN clientService;
 	//HANDLE hThread[2];
-
+	char *MyMsg = NULL;
+	PrepareMessage(&MyMsg, "CLIENT_REQUEST", NULL, NULL, NULL, 0);
 	int user_exit = 0;
-	// updating the client struct
-	client_thread_param thread_param;
-
-	strcpy_s(thread_param.username, MAX_USERNAME_LENGTH, username);
-	strcpy_s(thread_param.ip_address, MAX_IP_LENGTH, ip_address);
-	strcpy_s(thread_param.port, MAX_PORT_LENGTH, port);
-	thread_param.clientService = &clientService;
 	// Initialize Winsock.
 	WSADATA wsaData;
 
@@ -48,6 +42,7 @@ void MainClient(char* ip_address, char* port, char* username)
 	int wait = 0;
 	int server_resp = 0;
 	int connect_res = 0;
+	int game_res = 0;
 
 	while (1) {
 		//try connection
@@ -100,7 +95,8 @@ void MainClient(char* ip_address, char* port, char* username)
 			}
 
 			else { //server resp = 0 - server approved
-				if (GameFlow() == 1) { // TIMEOUT during game
+				game_res = GameFlow();
+				if (game_res == 1) { // TIMEOUT during game
 					closesocket(m_socket); //disconnect from server
 					if (ReconnectMenu(1, ip_address, port) == 1) {
 						m_socket = CreateAndCheckSocket();
@@ -109,6 +105,11 @@ void MainClient(char* ip_address, char* port, char* username)
 					//else - got 2 exit from user. 
 					printf("Bye\n");
 					return;
+				}
+				else if (game_res == 4) {
+
+					closesocket(m_socket);
+
 				}
 				
 			}
@@ -351,7 +352,7 @@ int GameFlow() {
 	//4 Quit
 	char *AcceptedStr = NULL;
 	wait = WaitForMessage(&AcceptedStr);
-	if (wait == 1) {
+	if (wait == 1) { //got TIMEOUT in receiving the message from server
 		return 1; //go back to main while loop, disconnect and show initial menu to user
 	}
 	server_response = CheckServerResponse(AcceptedStr);
@@ -359,19 +360,32 @@ int GameFlow() {
 		printf("Debug Print:\nServer Didn't send SERVER_MAIN_MENU\n");
 		//error?
 	}
-	//else - server response is 2 - main m enu, show main menu to user
+	//else - server response is 2 - main menu, show main menu to user
 	user_response = ShowMainMenu();
+	char *MessageToSend = NULL;
 	if (user_response == 1) {
-		//play against another client
+		PrepareMessage(&MessageToSend, "CLIENT_VERSUS", NULL, NULL, NULL, 0);
+		//send message
+		free(MessageToSend);
 	}
 	else if (user_response == 2) {
 		//play against server
+		PrepareMessage(&MessageToSend, "CLIENT_CPU", NULL, NULL, NULL, 0);
+		//send message
+		free(MessageToSend);
 	}
 	else if (user_response == 3) {
 		// view leader board
+		PrepareMessage(&MessageToSend, "CLIENT_LEADERBOARD", NULL, NULL, NULL, 0);
+		//send message
+		free(MessageToSend);
 	}
-	else { //user response == 4 {
-
+	else { //user response == 4 quit
+		
+		PrepareMessage(&MessageToSend, "CLIENT_DISCONNECT", NULL, NULL, NULL, 0);
+		//send message
+		free(MessageToSend);
+		return 4;
 	}
 
 }
@@ -386,4 +400,60 @@ start:
 	if (user_decision != 1 && user_decision != 2 && user_decision != 3 && user_decision != 4)
 		goto start;
 	return user_decision;
+}
+
+
+
+int PrepareMessage(char **Dest, char *message, char* parameter_1, char* parameter_2, char* parameter_3, int num_of_valid_params) {
+
+	if (*Dest != NULL) {
+		printf("Debug Print:\n Dest has to be pointer to null, so it can be malloced\n");
+		return 1;
+	}
+	int len = 0;
+	//len(message) + ':' = len(message) + 1
+	//number of ; = num of valid params - 1
+	//len of params:
+	// + 1 for \n 
+	len = GetTotalLen(parameter_1, parameter_2, parameter_3, num_of_valid_params) + strlen(message) + 1 + (num_of_valid_params - 1) + 2;
+
+	*Dest = (char*)malloc(len * sizeof(char));
+	if (*Dest == NULL) {
+		printf("Error in allocating memory\n");
+		return 1;
+	}
+
+	strcpy_s(*Dest, len, message); //THIS_IS_MESSAGE
+	strcat_s(*Dest, len, ":");
+	if (num_of_valid_params != 0) {
+		// at least one valid parameter
+		strcat_s(*Dest, len, (const char*) parameter_1);
+		if (num_of_valid_params >= 2) {
+			strcat_s(*Dest, len, ";");
+			strcat_s(*Dest, len, (const char*) parameter_2);
+			if (num_of_valid_params == 3) {
+				strcat_s(*Dest, len, ";");
+				strcat_s(*Dest, len, (const char*) parameter_3);
+			}
+		}
+	}
+	printf("\nMessage is: %s\n", *Dest);
+	*(*Dest + strlen(*Dest)) = '\n'; //Messages need to end with '\n'
+
+	return 0;
+}
+
+int GetTotalLen(char* parameter_1, char* parameter_2, char* parameter_3, int num_of_valid_params) {
+	int len = 0;
+	
+	if (num_of_valid_params == 0)
+		return 0;
+	else if (num_of_valid_params == 1)
+		len = strlen(parameter_1);
+	else if (num_of_valid_params == 2)
+		len = strlen(parameter_1) + strlen(parameter_2);
+	else // 3 valid params
+		len = strlen(parameter_1) + strlen(parameter_2) + strlen(parameter_3);
+
+	return len;
 }

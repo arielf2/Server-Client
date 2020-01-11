@@ -17,6 +17,7 @@
 #define SERVER_WAIT_TIMEOUT 15
 #include <stdio.h>
 #include <string.h>
+#include <stdlib.h>
 #include <winsock2.h>
 #include <ws2tcpip.h>
 #include "SharedFuncs.h"
@@ -62,19 +63,31 @@ int CreateAndCheckSocket();
 	Parameters:	 reponse - the string received from the the server
 	Returns:	 integer representing the message	*/
 int CheckServerResponse(char* response);
-//	//if (response == NULL) {
-//	//	return 1;
-//	//}
-//	if (CompareProtocolMessages(response, SERVER_APPROVED) == 0) {
-//		return 0;
-//	}
-//	else if (CompareProtocolMessages(response, SERVER_DENIED) == 0) {
-//		return 1;
-//	}
-//	else if (CompareProtocolMessages(response, SERVER_MAIN_MENU) == 0) {
-//		return 2;
-//	}
-//
-//	free(response);
-//	return 0;
-//}
+
+/*	Description: Show the main menu to the user and accept the response
+	Parameters:	 
+	Returns:	integer representing the response */
+int ShowMainMenu();
+
+
+/*	Description: Get the message type and parameters and create a valid message to send to server/client
+	Parameters: Dest - pointer to a char pointer, this will hold the final message to send
+				Dest is malloced - need to free after using
+				message - the message type
+				parameter_1/2/3 - given parameters, up to 3. Set unused parameters to NULL.
+				num_of_valid_params - number of valid parameters to send. Up to 3
+	Returns:	0 if function succeeded, 1 if failed */
+int PrepareMessage(char **Dest, char *message, char* parameter_1, char* parameter_2, char* parameter_3, int num_of_valid_params);
+
+
+/*	Description: Gets the total length of the valid parameters for a specific message
+	Parameters:	 parameter_1/2/3 - parameters for the message
+				 num_of_valid_params - number of valid params (up to 3)
+	Returns		 int - total length (in bytes) of the valid parameters	*/
+int GetTotalLen(char* parameter_1, char* parameter_2, char* parameter_3, int num_of_valid_params);
+
+
+/*	Description: 
+	Parameters:
+	Returns:	*/
+int GameFlow();

@@ -48,7 +48,7 @@ TransferResult_t SendString(const char *Str, SOCKET sd)
 	/* The request is sent in two parts. First the Length of the string (stored in
 	   an int variable ), then the string itself. */
 
-	TotalStringSizeInBytes = (int)(GetLen(Str) + 1); // terminating \n also sent	
+	TotalStringSizeInBytes = (GetLen(Str) + 1); // terminating \n also sent	
 
 	SendRes = SendBuffer(
 		(const char *)(&TotalStringSizeInBytes),

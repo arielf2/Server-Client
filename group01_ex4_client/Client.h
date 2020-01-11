@@ -9,8 +9,9 @@
 #define MAX_IP_LENGTH 16 // 255.255.255.255, 15 + 1
 #define MAX_PORT_LENGTH 5 // 8888, + 1
 #define CLIENT_REQUEST "CLIENT_REQUEST:"
-#define CLIENT_APPROVED "CLIENT_APPROVED\n"
-#define CLIENT_DENIED "CLIENT_DENIED\n"
+#define SERVER_APPROVED "SERVER_APPROVED\n"
+#define SERVER_DENIED "SERVER_DENIED\n"
+#define SERVER_MAIN_MENU "SERVER_MAIN_MENU\n"
 
 
 #define SERVER_WAIT_TIMEOUT 15
@@ -55,4 +56,25 @@ int WaitForMessage(char **AcceptedString);
 	Returns: 0 upon successfull send, error otherwise */
 int SendClientRequest(char *username);
 
-SOCKET CreateAndCheckSocket();
+int CreateAndCheckSocket();
+
+/*	Description: After receiving a response from the server, check which type of message it is.
+	Parameters:	 reponse - the string received from the the server
+	Returns:	 integer representing the message	*/
+int CheckServerResponse(char* response);
+//	//if (response == NULL) {
+//	//	return 1;
+//	//}
+//	if (CompareProtocolMessages(response, SERVER_APPROVED) == 0) {
+//		return 0;
+//	}
+//	else if (CompareProtocolMessages(response, SERVER_DENIED) == 0) {
+//		return 1;
+//	}
+//	else if (CompareProtocolMessages(response, SERVER_MAIN_MENU) == 0) {
+//		return 2;
+//	}
+//
+//	free(response);
+//	return 0;
+//}

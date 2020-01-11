@@ -8,7 +8,7 @@ SOCKET m_socket;
 void MainClient(char* ip_address, char* port, char* username)
 {
 	SOCKADDR_IN clientService;
-	//HANDLE hThread[2];
+	ShowMainMenu();
 	char *MyMsg = NULL;
 	PrepareMessage(&MyMsg, "CLIENT_REQUEST", NULL, NULL, NULL, 0);
 	int user_exit = 0;
@@ -31,18 +31,11 @@ void MainClient(char* ip_address, char* port, char* username)
 	clientService.sin_addr.s_addr = inet_addr(ip_address); //Setting the IP address to connect to
 	clientService.sin_port = htons((u_short)port); //Setting the port to connect to.
 
-	/*
-		AF_INET is the Internet address family.
-	*/
 
+	int wait = 0, server_resp = 0, connect_res = 0, game_res = 0;
 	// Call the connect function, passing the created socket and the sockaddr_in structure as parameters. 
 	// Check for general errors.
 	printf("Trying to connect to port %d\n", clientService.sin_port);
-
-	int wait = 0;
-	int server_resp = 0;
-	int connect_res = 0;
-	int game_res = 0;
 
 	while (1) {
 		//try connection
@@ -56,6 +49,7 @@ void MainClient(char* ip_address, char* port, char* username)
 				break;
 			} // user wants to exit
 		}
+
 		else { 	//connection successfull:
 			//send client request
 			if (SendClientRequest(username) != 0) {
@@ -96,7 +90,7 @@ void MainClient(char* ip_address, char* port, char* username)
 
 			else { //server resp = 0 - server approved
 				game_res = GameFlow();
-				if (game_res == 1) { // TIMEOUT during game
+				if (game_res == -1) { // TIMEOUT during game
 					closesocket(m_socket); //disconnect from server
 					if (ReconnectMenu(1, ip_address, port) == 1) {
 						m_socket = CreateAndCheckSocket();
@@ -107,9 +101,8 @@ void MainClient(char* ip_address, char* port, char* username)
 					return;
 				}
 				else if (game_res == 4) {
-
 					closesocket(m_socket);
-
+					break;
 				}
 				
 			}
@@ -230,23 +223,14 @@ start:
 		printf("Server on %s:%s denied the connection request.\nChoose what to do next:\n1. Try to reconnect\n2. Exit\n", ip_address, port);
 	else //reason_for_connect = 2 - timeout or connection lost
 		printf("Connection to server on %s:%s has been lost.\nChoose what to do next:\n1. Try to reconnect\n2. Exit\n", ip_address, port);
+	
 	gets_s(user_resp, 2);
-
 	user_dec = strtol(user_resp, NULL, 10);
 	if (user_dec != 1 && user_dec != 2)
 		goto start;
-	//if (strcmp(user_resp, "2") == 0) {
-	//	WSACleanup();			//return; 
-	//	user_decision = 2;
-	//}
-	//else if (strcmp(user_resp, "1") == 0) //user decision = 1 - try to reconnect
-	//	user_decision = 1;
 	else {
-		//goto start;
 		return user_dec;
 	}
-
-	//return user_decision;
 }
 
 int WaitForMessage(char **AcceptedString) {
@@ -334,6 +318,8 @@ int CheckServerResponse(char* response) {
 	else if (CompareProtocolMessages(response, SERVER_MAIN_MENU) == 0) {
 		resp = 2;
 	}
+	else if ((CompareProtocolMessages(response, SERVER_PLAYER_MOVE_REQUEST) == 0))
+		resp = 3;
 
 	free(response);
 	return resp;
@@ -341,9 +327,7 @@ int CheckServerResponse(char* response) {
 
 
 int GameFlow() {
-	int wait = 0;
-	int server_response = 0;
-	int user_response = 0;
+	int wait = 0, server_response = 0, user_response = 0;
 	// wait for server main menu message
 	// get user response from:
 	//1 Play against another client 
@@ -353,7 +337,7 @@ int GameFlow() {
 	char *AcceptedStr = NULL;
 	wait = WaitForMessage(&AcceptedStr);
 	if (wait == 1) { //got TIMEOUT in receiving the message from server
-		return 1; //go back to main while loop, disconnect and show initial menu to user
+		return -1; //go back to main while loop, disconnect and show initial menu to user
 	}
 	server_response = CheckServerResponse(AcceptedStr);
 	if (server_response != 2) {
@@ -364,37 +348,47 @@ int GameFlow() {
 	user_response = ShowMainMenu();
 	char *MessageToSend = NULL;
 	if (user_response == 1) {
+		//play against another client
 		PrepareMessage(&MessageToSend, "CLIENT_VERSUS", NULL, NULL, NULL, 0);
-		//send message
+		if (SendMessageToDest(MessageToSend) != 0) {
+			//error sending message
+		}
 		free(MessageToSend);
+
 	}
 	else if (user_response == 2) {
 		//play against server
 		PrepareMessage(&MessageToSend, "CLIENT_CPU", NULL, NULL, NULL, 0);
-		//send message
+		if (SendMessageToDest(MessageToSend) != 0) {
+			//error sending message
+		}
 		free(MessageToSend);
+		ClientVersusServer();
 	}
 	else if (user_response == 3) {
 		// view leader board
 		PrepareMessage(&MessageToSend, "CLIENT_LEADERBOARD", NULL, NULL, NULL, 0);
-		//send message
+		if (SendMessageToDest(MessageToSend) != 0) {
+			//error sending message
+		}
 		free(MessageToSend);
 	}
-	else { //user response == 4 quit
-		
+	else
+	{//user response == 4 quit
 		PrepareMessage(&MessageToSend, "CLIENT_DISCONNECT", NULL, NULL, NULL, 0);
-		//send message
+		if (SendMessageToDest(MessageToSend) != 0) {
+			//error sending message
+		}
 		free(MessageToSend);
 		return 4;
 	}
-
 }
 
 int ShowMainMenu() {
 	long int user_decision = 0;
 	char user_resp[2];
 start:
-	printf("Choose what to do next:\n1. Play against another client\n2. Play against the server\n3. View the leaderboard\n4.Quit");
+	printf("Choose what to do next:\n1. Play against another client\n2. Play against the server\n3. View the leaderboard\n4. Quit\n");
 	gets_s(user_resp, 2);
 	user_decision = strtol(user_resp, NULL, 10);
 	if (user_decision != 1 && user_decision != 2 && user_decision != 3 && user_decision != 4)
@@ -457,3 +451,43 @@ int GetTotalLen(char* parameter_1, char* parameter_2, char* parameter_3, int num
 
 	return len;
 }
+
+int SendMessageToDest(char *message) {
+	TransferResult_t SendRes;
+
+	SendRes = SendString(message, m_socket);
+	if (SendRes == TRNS_FAILED)
+	{
+		printf("Socket error while trying to write data to socket\n");
+		return 0x555;
+	}
+	return 0;
+}
+
+int ClientVersusServer() {
+	int wait, server_response;
+	char user_move[MAX_MOVE_LENGTH] = "";
+	char *AcceptedStr = NULL;
+	char *MessageToSend = NULL;
+	wait = WaitForMessage(&AcceptedStr);
+	if (wait == 1) { //got TIMEOUT in receiving the message from server
+		return -1; //go back to main while loop, disconnect and show initial menu to user
+	}
+
+	server_response = CheckServerResponse(AcceptedStr);
+	if (server_response != 3) {
+		printf("Debug Print:\nServer Didn't send SERVER_PLAYER_MOVE_REQUEST\n");
+		//error?
+	}
+	printf("Choose a move from the list: Rock, Paper, Scissors, Lizard or Spock:\n");
+	gets_s(user_move, MAX_MOVE_LENGTH);
+	_strupr_s(user_move, MAX_MOVE_LENGTH); // convert to uppercase
+
+	PrepareMessage(&MessageToSend, "CLIENT_PLAYER_MOVE", user_move, NULL, NULL, 1);
+
+	if (SendMessageToDest(MessageToSend) == 0) { //bad value check
+		//error
+	}
+	//wait for server game results
+}
+

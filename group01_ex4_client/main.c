@@ -8,7 +8,7 @@ int main(int argc, char* argv[]) {
 	if (ParseCommand(ip_address, port, username, argv)) {
 		return 1;
 	}
-
+	
 	MainClient(ip_address, port, username);
 
 }

@@ -8,11 +8,12 @@
 #define MAX_USERNAME_LENGTH 21
 #define MAX_IP_LENGTH 16 // 255.255.255.255, 15 + 1
 #define MAX_PORT_LENGTH 5 // 8888, + 1
+#define MAX_MOVE_LENGTH 9
 #define CLIENT_REQUEST "CLIENT_REQUEST:"
 #define SERVER_APPROVED "SERVER_APPROVED\n"
 #define SERVER_DENIED "SERVER_DENIED\n"
 #define SERVER_MAIN_MENU "SERVER_MAIN_MENU\n"
-
+#define SERVER_PLAYER_MOVE_REQUEST "SERVER_PLAYER_MOVE_REQUEST\n"
 
 #define SERVER_WAIT_TIMEOUT 15
 #include <stdio.h>
@@ -91,3 +92,9 @@ int GetTotalLen(char* parameter_1, char* parameter_2, char* parameter_3, int num
 	Parameters:
 	Returns:	*/
 int GameFlow();
+
+/*	Description: Sends the message in the specified format to the destination, through the global socket
+	Parameters: message - the message to send
+	Returns: 0 if successfull, !0 if failed
+*/
+int SendMessageToDest(char *message);

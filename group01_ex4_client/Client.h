@@ -98,3 +98,8 @@ int GameFlow();
 	Returns: 0 if successfull, !0 if failed
 */
 int SendMessageToDest(char *message);
+/*	Description: 
+	Parameters:
+	Returns:*/
+int ClientVersusServer();
+

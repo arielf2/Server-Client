@@ -328,59 +328,67 @@ int CheckServerResponse(char* response) {
 
 int GameFlow() {
 	int wait = 0, server_response = 0, user_response = 0;
+
 	// wait for server main menu message
 	// get user response from:
 	//1 Play against another client 
 	//2 Play against the server
 	//3 View the leaderboard
 	//4 Quit
-	char *AcceptedStr = NULL;
-	wait = WaitForMessage(&AcceptedStr);
-	if (wait == 1) { //got TIMEOUT in receiving the message from server
-		return -1; //go back to main while loop, disconnect and show initial menu to user
-	}
-	server_response = CheckServerResponse(AcceptedStr);
-	if (server_response != 2) {
-		printf("Debug Print:\nServer Didn't send SERVER_MAIN_MENU\n");
-		//error?
-	}
-	//else - server response is 2 - main menu, show main menu to user
-	user_response = ShowMainMenu();
-	char *MessageToSend = NULL;
-	if (user_response == 1) {
-		//play against another client
-		PrepareMessage(&MessageToSend, "CLIENT_VERSUS", NULL, NULL, NULL, 0);
-		if (SendMessageToDest(MessageToSend) != 0) {
-			//error sending message
+	while (1) {
+		char *AcceptedStr = NULL;
+		wait = WaitForMessage(&AcceptedStr);
+		if (wait == 1) { //got TIMEOUT in receiving the message from server
+			return -1; //go back to main while loop, disconnect and show initial menu to user
 		}
-		free(MessageToSend);
+		server_response = CheckServerResponse(AcceptedStr);
+		if (server_response != 2) {
+			printf("Debug Print:\nServer Didn't send SERVER_MAIN_MENU\n");
+			//error?
+		}
+		//else - server response is 2 - main menu, show main menu to user
+		user_response = ShowMainMenu();
+		char *MessageToSend = NULL;
+		if (user_response == 1) {
+			//play against another client
+			PrepareMessage(&MessageToSend, "CLIENT_VERSUS", NULL, NULL, NULL, 0);
+			if (SendMessageToDest(MessageToSend) != 0) {
+				//error sending message
+			}
+			free(MessageToSend);
 
-	}
-	else if (user_response == 2) {
-		//play against server
-		PrepareMessage(&MessageToSend, "CLIENT_CPU", NULL, NULL, NULL, 0);
-		if (SendMessageToDest(MessageToSend) != 0) {
-			//error sending message
 		}
-		free(MessageToSend);
-		ClientVersusServer();
-	}
-	else if (user_response == 3) {
-		// view leader board
-		PrepareMessage(&MessageToSend, "CLIENT_LEADERBOARD", NULL, NULL, NULL, 0);
-		if (SendMessageToDest(MessageToSend) != 0) {
-			//error sending message
+		else if (user_response == 2) {
+			//play against server
+			int user_dec;
+			PrepareMessage(&MessageToSend, "CLIENT_CPU", NULL, NULL, NULL, 0);
+			if (SendMessageToDest(MessageToSend) != 0) {
+				//error sending message
+			}
+			free(MessageToSend);
+			user_dec = ClientVersusServer();
+			if (user_dec == 5)
+				continue; //user decided to go back to main menu;
+
+
 		}
-		free(MessageToSend);
-	}
-	else
-	{//user response == 4 quit
-		PrepareMessage(&MessageToSend, "CLIENT_DISCONNECT", NULL, NULL, NULL, 0);
-		if (SendMessageToDest(MessageToSend) != 0) {
-			//error sending message
+		else if (user_response == 3) {
+			// view leader board
+			PrepareMessage(&MessageToSend, "CLIENT_LEADERBOARD", NULL, NULL, NULL, 0);
+			if (SendMessageToDest(MessageToSend) != 0) {
+				//error sending message
+			}
+			free(MessageToSend);
 		}
-		free(MessageToSend);
-		return 4;
+		else
+		{//user response == 4 quit
+			PrepareMessage(&MessageToSend, "CLIENT_DISCONNECT", NULL, NULL, NULL, 0);
+			if (SendMessageToDest(MessageToSend) != 0) {
+				//error sending message
+			}
+			free(MessageToSend);
+			return 4;
+		}
 	}
 }
 
@@ -465,16 +473,16 @@ int SendMessageToDest(char *message) {
 }
 
 int ClientVersusServer() {
-	int wait, server_response;
+	int wait, server_response, user_decision;
 	char user_move[MAX_MOVE_LENGTH] = "";
-	char *AcceptedStr = NULL;
-	char *MessageToSend = NULL;
-	wait = WaitForMessage(&AcceptedStr);
+	char *AcceptedStr1 = NULL, *AcceptedStr2 = NULL, *AcceptedStr3 = NULL;
+	char *MessageToSend1 = NULL, *MessageToSend2 = NULL;
+	wait = WaitForMessage(&AcceptedStr1);
 	if (wait == 1) { //got TIMEOUT in receiving the message from server
 		return -1; //go back to main while loop, disconnect and show initial menu to user
 	}
 
-	server_response = CheckServerResponse(AcceptedStr);
+	server_response = CheckServerResponse(AcceptedStr1);
 	if (server_response != 3) {
 		printf("Debug Print:\nServer Didn't send SERVER_PLAYER_MOVE_REQUEST\n");
 		//error?
@@ -483,11 +491,41 @@ int ClientVersusServer() {
 	gets_s(user_move, MAX_MOVE_LENGTH);
 	_strupr_s(user_move, MAX_MOVE_LENGTH); // convert to uppercase
 
-	PrepareMessage(&MessageToSend, "CLIENT_PLAYER_MOVE", user_move, NULL, NULL, 1);
+	PrepareMessage(&MessageToSend1, "CLIENT_PLAYER_MOVE", user_move, NULL, NULL, 1);
 
-	if (SendMessageToDest(MessageToSend) == 0) { //bad value check
+	if (SendMessageToDest(MessageToSend1) == 0) { //bad value check
 		//error
 	}
 	//wait for server game results
+
+	wait = WaitForMessage(&AcceptedStr2);
+	if (wait == 1) { //got TIMEOUT in receiving the message from server
+		return -1; //go back to main while loop, disconnect and show initial menu to user
+	} 
+	// parse results and print to screen  (check that SERVER_GAME_RESULTS was received)
+
+	wait = WaitForMessage(&AcceptedStr3);
+	if (wait == 1) { //got TIMEOUT in receiving the message from server
+		return -1; //go back to main while loop, disconnect and show initial menu to user
+	}
+
+	//check that SERVER_GAME_OVER_MENU was received
+	user_decision = ShowPostGameMenu();
+	if (user_decision == 2) {
+		PrepareMessage(MessageToSend2, "CLIENT_MAIN_MENU", NULL, NULL, NULL, 0);
+		SendMessageToDest(MessageToSend2);
+		return 5;
+	}
 }
 
+int ShowPostGameMenu() {
+	long int user_decision = 0;
+	char user_resp[2];
+start:
+	printf("Choose what to do next:\n1. Play again\n2. Return to the main menu\n");
+	gets_s(user_resp, 2);
+	user_decision = strtol(user_resp, NULL, 10);
+	if (user_decision != 1 && user_decision != 2)
+		goto start;
+	return user_decision;
+}

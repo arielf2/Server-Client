@@ -8,7 +8,6 @@ SOCKET m_socket;
 void MainClient(char* ip_address, char* port, char* username)
 {
 	SOCKADDR_IN clientService;
-	ShowMainMenu();
 	char *MyMsg = NULL;
 	PrepareMessage(&MyMsg, "CLIENT_REQUEST", NULL, NULL, NULL, 0);
 	int user_exit = 0;
@@ -327,9 +326,10 @@ int CheckServerResponse(char* response) {
 
 
 int GameFlow() {
-	int wait = 0, server_response = 0, user_response = 0;
+	int wait = 0, server_response = 0, user_response = 0, finish_game = 0;
 
 	// wait for server main menu message
+	
 	// get user response from:
 	//1 Play against another client 
 	//2 Play against the server
@@ -360,15 +360,17 @@ int GameFlow() {
 		}
 		else if (user_response == 2) {
 			//play against server
-			int user_dec;
 			PrepareMessage(&MessageToSend, "CLIENT_CPU", NULL, NULL, NULL, 0);
-			if (SendMessageToDest(MessageToSend) != 0) {
-				//error sending message
+			while (finish_game == 0) {
+				if (SendMessageToDest(MessageToSend) != 0) {
+					//error sending message
+				}
+				if (ClientVersusServer() != 6) //Client Versus Server has two return values: 5 for game done, 6 for replay.
+					finish_game = 1;
+				// else, ClientVersusServer returned 6 which is replay - continue while loop.
 			}
 			free(MessageToSend);
-			user_dec = ClientVersusServer();
-			if (user_dec == 5)
-				continue; //user decided to go back to main menu;
+			continue; // if we reached here, user decided to go back to main menu;
 
 
 		}
@@ -378,6 +380,7 @@ int GameFlow() {
 			if (SendMessageToDest(MessageToSend) != 0) {
 				//error sending message
 			}
+			Leaderboard();
 			free(MessageToSend);
 		}
 		else
@@ -479,7 +482,7 @@ int ClientVersusServer() {
 	char *MessageToSend1 = NULL, *MessageToSend2 = NULL;
 	wait = WaitForMessage(&AcceptedStr1);
 	if (wait == 1) { //got TIMEOUT in receiving the message from server
-		return -1; //go back to main while loop, disconnect and show initial menu to user
+		//return -1; //go back to main while loop, disconnect and show initial menu to user
 	}
 
 	server_response = CheckServerResponse(AcceptedStr1);
@@ -487,9 +490,7 @@ int ClientVersusServer() {
 		printf("Debug Print:\nServer Didn't send SERVER_PLAYER_MOVE_REQUEST\n");
 		//error?
 	}
-	printf("Choose a move from the list: Rock, Paper, Scissors, Lizard or Spock:\n");
-	gets_s(user_move, MAX_MOVE_LENGTH);
-	_strupr_s(user_move, MAX_MOVE_LENGTH); // convert to uppercase
+	GetUserMove(user_move);
 
 	PrepareMessage(&MessageToSend1, "CLIENT_PLAYER_MOVE", user_move, NULL, NULL, 1);
 
@@ -512,10 +513,12 @@ int ClientVersusServer() {
 	//check that SERVER_GAME_OVER_MENU was received
 	user_decision = ShowPostGameMenu();
 	if (user_decision == 2) {
-		PrepareMessage(MessageToSend2, "CLIENT_MAIN_MENU", NULL, NULL, NULL, 0);
+		PrepareMessage(&MessageToSend2, "CLIENT_MAIN_MENU", NULL, NULL, NULL, 0);
 		SendMessageToDest(MessageToSend2);
 		return 5;
 	}
+	//else - user chose 1. Play Again
+	return 6;
 }
 
 int ShowPostGameMenu() {
@@ -523,6 +526,62 @@ int ShowPostGameMenu() {
 	char user_resp[2];
 start:
 	printf("Choose what to do next:\n1. Play again\n2. Return to the main menu\n");
+	gets_s(user_resp, 2);
+	user_decision = strtol(user_resp, NULL, 10);
+	if (user_decision != 1 && user_decision != 2)
+		goto start;
+	return user_decision;
+}
+
+void GetUserMove(char* move) {
+start:
+	printf("Choose a move from the list: Rock, Paper, Scissors, Lizard or Spock:\n");
+	gets_s(move, MAX_MOVE_LENGTH);
+	_strupr_s(move, MAX_MOVE_LENGTH); // convert to uppercase
+	if (strcmp(move, "ROCK") && strcmp(move, "PAPER") && strcmp(move, "SCISSORS") && strcmp(move, "LIZARD") && strcmp(move, "SPOCK")) {
+		printf("Please choose a valid move\n");
+		goto start;
+	}
+}
+
+
+int Leaderboard() {
+	int wait, server_response;
+	char *LeaderboardMsg = NULL, *LeaderboardMenu = NULL;
+	wait = WaitForMessage(&LeaderboardMsg);
+	if (wait == 1) { //got TIMEOUT in receiving the message from server
+		return -1; //go back to main while loop, disconnect and show initial menu to user
+	}
+
+	server_response = CheckServerResponse(LeaderboardMsg);
+	//if (server_response != 2) {
+	//	printf("Debug Print:\nServer Didn't send SERVER_LEADERBOARD\n");
+	//	//error?
+	//}
+	free(LeaderboardMsg);
+
+	//parse response, print leaderboard
+
+	wait = WaitForMessage(&LeaderboardMenu);
+	if (wait == 1) { //got TIMEOUT in receiving the message from server
+		return -1; //go back to main while loop, disconnect and show initial menu to user
+	}
+
+	server_response = CheckServerResponse(LeaderboardMenu);
+	//if (server_response != 2) {
+	//	printf("Debug Print:\nServer Didn't send SERVER_LEADERBOARD_MENU\n");
+	//	//error?
+	//}
+
+	ShowLeaderboardMenu();
+
+}
+
+int ShowLeaderboardMenu() {
+	long int user_decision = 0;
+	char user_resp[2];
+start:
+	printf("Choose what to do next:\n1. Refresh Leaderboard\n2. Return to the main menu\n");
 	gets_s(user_resp, 2);
 	user_decision = strtol(user_resp, NULL, 10);
 	if (user_decision != 1 && user_decision != 2)

@@ -34,9 +34,10 @@ typedef struct {
 
 void MainClient(char* ip_address, char* port, char* username);
 
-static DWORD RecvDataThread(LPVOID lpParam);
 
-static DWORD SendDataThread(LPVOID lpParam);
+/* ########################################################################### */
+/* #						        Menus			    					 # */
+/* ########################################################################### */
 
 /*	Description:	Show The reconnection menu to the user, and display the correct error according to the reason for reconnection
 	Parameters:		reason_for_connect - 0: initial connection
@@ -46,6 +47,51 @@ static DWORD SendDataThread(LPVOID lpParam);
 					port - the port to which we want to connet
 	Returns:		user decision - 2 if user asked to exit, 1 to reconnect  */
 int ReconnectMenu(int reason_for_connect, char* ip_address, char* port);
+
+/*	Description: Show the main menu to the user and accept the response
+	Parameters:
+	Returns:	integer representing the response */
+int ShowMainMenu();
+
+/*	Description: Shows the after-game menu to the user and gets his/her desired action
+	Parameters: None
+	Return: 1 if user wants to replay, 2 if users wants to return to main menu */
+int ShowPostGameMenu();
+
+/*	Description: Shows the leaderboard menu to the user
+	Parameters: None
+	Returns:	1 if user wants to refresh leaderboard, 2 if user wants to return to main menu */
+int ShowLeaderboardMenu();
+
+
+
+/* ########################################################################### */
+/* #						        Game			    					 # */
+/* ########################################################################### */
+
+
+/*	Description:
+	Parameters:
+	Returns:	*/
+int GameFlow();
+
+/*	Description: Initiates a game between client and server, by sending and receiving the messages according to the requirements
+	Parameters: None
+	Returns: 5 if user wants to finish game, 6 for replay */
+int ClientVersusServer();
+
+/*	Description: Gets the chosen move by the user through the keyboard
+	Parameters: char* move - it will point to the given move by the user
+	Returns: None */
+void GetUserMove(char* move);
+
+
+
+/*	Description: 
+	Parameters:
+	Returns:	*/
+int Leaderboard();
+
 
 /*	Description: Wait for the server to send a message. TIMEOUT if no response within 15 seconds
 	Parameters:  AcceptedString - pointer to a char pointer, that will eventually point to the received string
@@ -65,10 +111,6 @@ int CreateAndCheckSocket();
 	Returns:	 integer representing the message	*/
 int CheckServerResponse(char* response);
 
-/*	Description: Show the main menu to the user and accept the response
-	Parameters:	 
-	Returns:	integer representing the response */
-int ShowMainMenu();
 
 
 /*	Description: Get the message type and parameters and create a valid message to send to server/client
@@ -88,18 +130,13 @@ int PrepareMessage(char **Dest, char *message, char* parameter_1, char* paramete
 int GetTotalLen(char* parameter_1, char* parameter_2, char* parameter_3, int num_of_valid_params);
 
 
-/*	Description: 
-	Parameters:
-	Returns:	*/
-int GameFlow();
+
 
 /*	Description: Sends the message in the specified format to the destination, through the global socket
 	Parameters: message - the message to send
 	Returns: 0 if successfull, !0 if failed
 */
 int SendMessageToDest(char *message);
-/*	Description: 
-	Parameters:
-	Returns:*/
-int ClientVersusServer();
+
+
 

@@ -4,6 +4,10 @@
 int GetLen(char *str) {
 	
 	int i = 0;
+	if (NULL == str) {
+		printf("GetLen Received a Null pointer");
+		return 0;
+	}
 	while (*str != '\n' && i < MAX_MESSAGE_LEN) {
 		i++;
 		str++;

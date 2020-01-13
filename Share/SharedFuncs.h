@@ -1,7 +1,9 @@
 #pragma once
 // This module defines useful functions for the communication protocol
+#include <stdlib.h>	
 
 #define MAX_MESSAGE_LEN 40
+
 
 /*	Description: Gets the number of characters in the message (without the '\n'), where the message is in the specified protocol (ends with '\n')
 	Parameters:  char *str: pointer to array of characters

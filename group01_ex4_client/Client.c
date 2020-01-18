@@ -7,12 +7,10 @@ SOCKET m_socket;
 
 void MainClient(char* ip_address, char* port, char* username)
 {
-	
 	SOCKADDR_IN clientService;
-	HANDLE hThread[2];
-	client_thread_param thread_param;
-	strcpy_s(thread_param.username, MAX_USERNAME_LENGTH, username);
-
+	char *MyMsg = NULL;
+	PrepareMessage(&MyMsg, "CLIENT_REQUEST", NULL, NULL, NULL, 0);
+	int user_exit = 0;
 	// Initialize Winsock.
 	WSADATA wsaData;
 
@@ -23,23 +21,8 @@ void MainClient(char* ip_address, char* port, char* username)
 
 	//Call the socket function and return its value to the m_socket variable. 
 	// Create a socket.
-	m_socket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
 
-	// Check for errors to ensure that the socket is a valid socket.
-	if (m_socket == INVALID_SOCKET) {
-		printf("Error at socket(): %ld\n", WSAGetLastError());
-		WSACleanup();
-		return;
-	}
-	/*
-	 The parameters passed to the socket function can be changed for different implementations.
-	 Error detection is a key part of successful networking code.
-	 If the socket call fails, it returns INVALID_SOCKET.
-	 The if statement in the previous code is used to catch any errors that may have occurred while creating
-	 the socket. WSAGetLastError returns an error number associated with the last error that occurred.
-	 */
-
-	 //For a client to communicate on a network, it must connect to a server.
+	CreateAndCheckSocket();
 	 // Connect to a server.
 
 	 //Create a sockaddr_in object clientService and set  values.
@@ -47,112 +30,561 @@ void MainClient(char* ip_address, char* port, char* username)
 	clientService.sin_addr.s_addr = inet_addr(ip_address); //Setting the IP address to connect to
 	clientService.sin_port = htons((u_short)port); //Setting the port to connect to.
 
-	/*
-		AF_INET is the Internet address family.
-	*/
 
+	int wait = 0, server_resp = 0, connect_res = 0, game_res = 0;
 	// Call the connect function, passing the created socket and the sockaddr_in structure as parameters. 
 	// Check for general errors.
 	printf("Trying to connect to port %d\n", clientService.sin_port);
-	while (connect(m_socket, (SOCKADDR*)& clientService, sizeof(clientService)) == SOCKET_ERROR) {
-		//(connect(m_socket, (SOCKADDR*)& clientService, sizeof(clientService)) == SOCKET_ERROR) {
-		printf("Failed connection, error %ld\n", WSAGetLastError());
-		printf("Failed connecting to server on %s:%s.\nChoose what to do next:\n1. Try to reconnect\n2. Exit\n", ip_address, port);
-		char user_resp[2];
-		gets_s(user_resp, 2);
 
-		if (strcmp(user_resp, "2") == 0) {
-			WSACleanup();
-			//return; 
-			break; //break just so we can finish the program. Currently can't connect to server. Change back to return
+	while (1) {
+		//try connection
+		connect_res = connect(m_socket, (SOCKADDR*)& clientService, sizeof(clientService));
+		if (connect_res == SOCKET_ERROR) {
+			printf("Failed connection, error %ld\n", WSAGetLastError());
+			if (ReconnectMenu(0, ip_address, port) == 1) //try reconnecting
+				continue;
+			else {
+				WSACleanup();
+				break;
+			} // user wants to exit
 		}
+
+		else { 	//connection successfull:
+			//send client request
+			if (SendClientRequest(username) != 0) {
+				printf("couldnt write client request to socket\n");
+				exit(1);
+			}
+			//else - successful write to socket, get server response.
+
+			//Approve/Deny Client
+
+			char *AcceptedStr = NULL;
+			wait = WaitForMessage(&AcceptedStr);
+			
+			if (wait == 1) { // TIMEOUT - show menu
+				closesocket(m_socket); //disconnect from server
+				if (ReconnectMenu(1, ip_address, port) == 1) {
+					m_socket = CreateAndCheckSocket();
+					continue;
+				}
+				//else - got 2 exit from user. 
+				printf("Bye\n");
+				return;
+			}
+
+			//else - wait = 0 so we received a valid message
+
+			server_resp = CheckServerResponse(AcceptedStr);
+			if (server_resp == 1) { //server denied - show menu
+				closesocket(m_socket); //disconnect from server
+				if (ReconnectMenu(2, ip_address, port) == 1) {
+					m_socket = CreateAndCheckSocket();
+					continue;
+				}
+				//else - got 2 exit from user
+				printf("Bye\n");
+				return;
+			}
+
+			else { //server resp = 0 - server approved
+				game_res = GameFlow();
+				if (game_res == -1) { // TIMEOUT during game
+					closesocket(m_socket); //disconnect from server
+					if (ReconnectMenu(1, ip_address, port) == 1) {
+						m_socket = CreateAndCheckSocket();
+						continue;
+					}
+					//else - got 2 exit from user. 
+					printf("Bye\n");
+					return;
+				}
+				else if (game_res == 4) {
+					closesocket(m_socket);
+					break;
+				}
+				
+			}
+									
+		}			
 	}
-
-	/* If we are here - we managed to connect to the server */
-
-	hThread[0] = CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)SendDataThread, &thread_param, 0, NULL);
-	hThread[1] = CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)RecvDataThread, NULL, 0, NULL);
-
-	//concat client request to username
-	
-
-	// Send client request
-	
-	//strcpy_s(cl_req, MAX_CLIENT_REQUEST_LEN + 1, "CLIENT_REQUEST:")
+	//user_exit = ReconnectMenu(0, &clientService, ip_address, port);
 }
 
-static DWORD RecvDataThread(LPVOID lpParam)
-{
+//static DWORD RecvDataThread(LPVOID lpParam)
+//{
+//
+//	if (NULL == lpParam) {
+//		printf("Received bad parameters in Client Recv Data Thread");
+//		exit(1);
+//	}
+//
+//	client_thread_param *client_params = (client_thread_param *)lpParam;
+//	TransferResult_t RecvRes;
+//	int wait = 0;
+//
+//	//Approve/Deny Client
+//	char *AcceptedStr = NULL;
+//	wait = WaitForMessage(&AcceptedStr);
+//
+//	if (wait == 1) // TIMEOUT - try to reconnect
+//	{
+//		ReconnectMenu(2, client_params->clientService, client_params->ip_address, client_params->port);
+//	}
+//	//RecvRes = ReceiveString(&AcceptedStr, m_socket);
+//	if (CompareProtocolMessages(AcceptedStr, SERVER_APPROVED) == 0) {
+//		// wait for main menu message from server
+//	}
+//	else if (CompareProtocolMessages(AcceptedStr, SERVER_DENIED) == 0) {
+//		ReconnectMenu(1, client_params->clientService, client_params->ip_address, client_params->port);
+//	}
+//
+//	free(AcceptedStr);
+//
+//
+//
+//	while (1)
+//	{
+//		char *AcceptedStr = NULL;
+//		RecvRes = ReceiveString(&AcceptedStr, m_socket);
+//
+//		if (RecvRes == TRNS_FAILED)
+//		{
+//			printf("Socket error while trying to write data to socket\n");
+//			return 0x555;
+//		}
+//		else if (RecvRes == TRNS_DISCONNECTED)
+//		{
+//			printf("Server closed connection. Bye!\n");
+//			return 0x555;
+//		}
+//		else
+//		{
+//			printf("%s\n", AcceptedStr);
+//		}
+//
+//		free(AcceptedStr);
+//	}
+//
+//	return 0;
+//}
+//
+///*oOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoO*/
+//
+////Sending data to the server
+//static DWORD SendDataThread(LPVOID lpParam)
+//{
+//
+//	if (NULL == lpParam) {
+//		printf("Received bad parameters in Client Send Data Thread");
+//		exit(1);
+//	}
+//
+//	client_thread_param *client_params = (client_thread_param *)lpParam;
+//	
+//	//Client Request
+//	char ClientRequest[MAX_CLIENT_REQUEST_LEN + 1] = CLIENT_REQUEST;  // CLIENT_REQUEST:
+//	strcat_s(ClientRequest, MAX_CLIENT_REQUEST_LEN + 1, client_params->username); //CLIENT_REQUEST:Ariel
+//	ClientRequest[strlen(ClientRequest)] = '\n'; // Turn the string to the correct protocol message, that ends with '\n' instead of '\0'
+//	
+//	//printf("length of str is %d", GetLen(ClientRequest));
+//	//printf("\nCompare %d", CompareProtocolMessages(ClientRequest, "IAMBCD\n"));
+//
+//	char SendStr[256];
+//	TransferResult_t SendRes;
+//
+//	while (0)
+//	{
+//		//gets_s(SendStr, sizeof(SendStr)); //Reading a string from the keyboard
+//
+//		//if (STRINGS_ARE_EQUAL(SendStr, "quit"))
+//			//return 0x555; //"quit" signals an exit from the client side
+//
+//		SendRes = SendString(SendStr, m_socket);
+//
+//		if (SendRes == TRNS_FAILED)
+//		{
+//			printf("Socket error while trying to write data to socket\n");
+//			return 0x555;
+//		}
+//	}
+//}
+//
+int ReconnectMenu(int reason_for_connect, char* ip_address, char* port) {
+	int user_decision = 0;
+	long int user_dec = 0;
+	char user_resp[2];
+start:
 
+	if (reason_for_connect == 0) // this is a first-time connection {
+		printf("Failed connecting to server on %s:%s.\nChoose what to do next:\n1. Try to reconnect\n2. Exit\n", ip_address, port);
+	else if (reason_for_connect == 1) // reason_for_connect == 1 - server denied
+		printf("Server on %s:%s denied the connection request.\nChoose what to do next:\n1. Try to reconnect\n2. Exit\n", ip_address, port);
+	else //reason_for_connect = 2 - timeout or connection lost
+		printf("Connection to server on %s:%s has been lost.\nChoose what to do next:\n1. Try to reconnect\n2. Exit\n", ip_address, port);
 	
+	gets_s(user_resp, 2);
+	user_dec = strtol(user_resp, NULL, 10);
+	if (user_dec != 1 && user_dec != 2)
+		goto start;
+	else {
+		return user_dec;
+	}
+}
+
+int WaitForMessage(char **AcceptedString) {
+	int error = 0;
+
+	fd_set set;
+	struct timeval time;
+	time.tv_sec = SERVER_WAIT_TIMEOUT;
+	time.tv_usec = 0;
+
+	FD_ZERO(&set);
+	FD_SET(m_socket, &set);
+
+	//char *AcceptedStr = NULL;
 	TransferResult_t RecvRes;
 
+	error = select(0, &set, NULL, NULL, &time);
 
-	while (1)
+	if (error == 0) {
+		printf("TIMEOUT: 15 seconds passed and no response from server, in WaitForMessage, ReceiveData client\n");
+		return 1;
+	}
+	RecvRes = ReceiveString(AcceptedString, m_socket);
+
+	if (RecvRes == TRNS_FAILED)
 	{
-		char *AcceptedStr = NULL;
-		RecvRes = ReceiveString(&AcceptedStr, m_socket);
+		printf("Socket error while trying to write data to socket\n");
+		return 0x555;
+	}
+	else if (RecvRes == TRNS_DISCONNECTED)
+	{
+		printf("Server closed connection. Bye!\n");
+		return 0x555;
+	}
+	else
+	{
+		printf("accepted string is: %s\n", *AcceptedString);
+	}
 
-		if (RecvRes == TRNS_FAILED)
-		{
-			printf("Socket error while trying to write data to socket\n");
-			return 0x555;
+	//free(AcceptedStr);
+
+}
+
+int SendClientRequest(char *username) {
+	char ClientRequest[MAX_CLIENT_REQUEST_LEN + 1] = CLIENT_REQUEST;  // CLIENT_REQUEST:
+	TransferResult_t SendRes;
+
+	strcat_s(ClientRequest, MAX_CLIENT_REQUEST_LEN + 1, username); //CLIENT_REQUEST:Ariel
+	ClientRequest[strlen(ClientRequest)] = '\n'; // Turn the string to the correct protocol message, that ends with '\n' instead of '\0'
+
+	SendRes = SendString(ClientRequest, m_socket);
+
+	if (SendRes == TRNS_FAILED)
+	{
+		printf("Socket error while trying to write data to socket\n");
+		return 0x555;
+	}
+
+	//else - success, return 0
+	return 0;
+}
+
+int CreateAndCheckSocket() {
+	m_socket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+	if (m_socket == INVALID_SOCKET) {
+		printf("Error at socket(): %ld\n", WSAGetLastError());
+		WSACleanup();
+		return 1;
+	}
+	return 0;
+}
+
+int CheckServerResponse(char* response) {
+	//if (response == NULL) {
+	//	return 1;
+	//}
+
+	int resp = -1;
+	if (CompareProtocolMessages(response, SERVER_APPROVED) == 0) {
+		resp = 0;
+	}
+	else if (CompareProtocolMessages(response, SERVER_DENIED) == 0) {
+		resp = 1;
+	}
+	else if (CompareProtocolMessages(response, SERVER_MAIN_MENU) == 0) {
+		resp = 2;
+	}
+	else if ((CompareProtocolMessages(response, SERVER_PLAYER_MOVE_REQUEST) == 0))
+		resp = 3;
+
+	free(response);
+	return resp;
+}
+
+
+int GameFlow() {
+	int wait = 0, server_response = 0, user_response = 0, finish_game = 0;
+
+	// wait for server main menu message
+	
+	// get user response from:
+	//1 Play against another client 
+	//2 Play against the server
+	//3 View the leaderboard
+	//4 Quit
+	while (1) {
+		char *AcceptedStr = NULL;
+		wait = WaitForMessage(&AcceptedStr);
+		if (wait == 1) { //got TIMEOUT in receiving the message from server
+			return -1; //go back to main while loop, disconnect and show initial menu to user
 		}
-		else if (RecvRes == TRNS_DISCONNECTED)
-		{
-			printf("Server closed connection. Bye!\n");
-			return 0x555;
+		server_response = CheckServerResponse(AcceptedStr);
+		if (server_response != 2) {
+			printf("Debug Print:\nServer Didn't send SERVER_MAIN_MENU\n");
+			//error?
+		}
+		//else - server response is 2 - main menu, show main menu to user
+		user_response = ShowMainMenu();
+		char *MessageToSend = NULL;
+		if (user_response == 1) {
+			//play against another client
+			PrepareMessage(&MessageToSend, "CLIENT_VERSUS", NULL, NULL, NULL, 0);
+			if (SendMessageToDest(MessageToSend) != 0) {
+				//error sending message
+			}
+			free(MessageToSend);
+
+		}
+		else if (user_response == 2) {
+			//play against server
+			PrepareMessage(&MessageToSend, "CLIENT_CPU", NULL, NULL, NULL, 0);
+			while (finish_game == 0) {
+				if (SendMessageToDest(MessageToSend) != 0) {
+					//error sending message
+				}
+				if (ClientVersusServer() != 6) //Client Versus Server has two return values: 5 for game done, 6 for replay.
+					finish_game = 1;
+				// else, ClientVersusServer returned 6 which is replay - continue while loop.
+			}
+			free(MessageToSend);
+			continue; // if we reached here, user decided to go back to main menu;
+
+
+		}
+		else if (user_response == 3) {
+			// view leader board
+			PrepareMessage(&MessageToSend, "CLIENT_LEADERBOARD", NULL, NULL, NULL, 0);
+			if (SendMessageToDest(MessageToSend) != 0) {
+				//error sending message
+			}
+			Leaderboard();
+			free(MessageToSend);
 		}
 		else
-		{
-			printf("%s\n", AcceptedStr);
+		{//user response == 4 quit
+			PrepareMessage(&MessageToSend, "CLIENT_DISCONNECT", NULL, NULL, NULL, 0);
+			if (SendMessageToDest(MessageToSend) != 0) {
+				//error sending message
+			}
+			free(MessageToSend);
+			return 4;
 		}
-
-		free(AcceptedStr);
 	}
+}
+
+int ShowMainMenu() {
+	long int user_decision = 0;
+	char user_resp[2];
+start:
+	printf("Choose what to do next:\n1. Play against another client\n2. Play against the server\n3. View the leaderboard\n4. Quit\n");
+	gets_s(user_resp, 2);
+	user_decision = strtol(user_resp, NULL, 10);
+	if (user_decision != 1 && user_decision != 2 && user_decision != 3 && user_decision != 4)
+		goto start;
+	return user_decision;
+}
+
+
+
+int PrepareMessage(char **Dest, char *message, char* parameter_1, char* parameter_2, char* parameter_3, int num_of_valid_params) {
+
+	if (*Dest != NULL) {
+		printf("Debug Print:\n Dest has to be pointer to null, so it can be malloced\n");
+		return 1;
+	}
+	int len = 0;
+	//len(message) + ':' = len(message) + 1
+	//number of ; = num of valid params - 1
+	//len of params:
+	// + 1 for \n 
+	len = GetTotalLen(parameter_1, parameter_2, parameter_3, num_of_valid_params) + strlen(message) + 1 + (num_of_valid_params - 1) + 2;
+
+	*Dest = (char*)malloc(len * sizeof(char));
+	if (*Dest == NULL) {
+		printf("Error in allocating memory\n");
+		return 1;
+	}
+
+	strcpy_s(*Dest, len, message); //THIS_IS_MESSAGE
+	strcat_s(*Dest, len, ":");
+	if (num_of_valid_params != 0) {
+		// at least one valid parameter
+		strcat_s(*Dest, len, (const char*) parameter_1);
+		if (num_of_valid_params >= 2) {
+			strcat_s(*Dest, len, ";");
+			strcat_s(*Dest, len, (const char*) parameter_2);
+			if (num_of_valid_params == 3) {
+				strcat_s(*Dest, len, ";");
+				strcat_s(*Dest, len, (const char*) parameter_3);
+			}
+		}
+	}
+	printf("\nMessage is: %s\n", *Dest);
+	*(*Dest + strlen(*Dest)) = '\n'; //Messages need to end with '\n'
 
 	return 0;
 }
 
-/*oOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoO*/
-
-//Sending data to the server
-static DWORD SendDataThread(LPVOID lpParam)
-{
-
-	if (NULL == lpParam) {
-		printf("Received bad parameters in Client Send Data Thread");
-		exit(1);
-	}
-
-	client_thread_param *client_params = (client_thread_param *)lpParam;
+int GetTotalLen(char* parameter_1, char* parameter_2, char* parameter_3, int num_of_valid_params) {
+	int len = 0;
 	
+	if (num_of_valid_params == 0)
+		return 0;
+	else if (num_of_valid_params == 1)
+		len = strlen(parameter_1);
+	else if (num_of_valid_params == 2)
+		len = strlen(parameter_1) + strlen(parameter_2);
+	else // 3 valid params
+		len = strlen(parameter_1) + strlen(parameter_2) + strlen(parameter_3);
 
-	char ClientRequest[MAX_CLIENT_REQUEST_LEN + 1] = CLIENT_REQUEST;  // CLIENT_REQUEST:
+	return len;
+}
 
-	strcat_s(ClientRequest, MAX_CLIENT_REQUEST_LEN + 1, client_params->username); //CLIENT_REQUEST:Ariel
-
-	ClientRequest[strlen(ClientRequest)] = '\n'; // Turn the string to the correct protocol message, that ends with '\n' instead of '\0'
-	
-	printf("length of str is %d", GetLen(ClientRequest));
-	printf("\nCompare %d", CompareProtocolMessages(ClientRequest, "IAMBCD\n"));
-
-	char SendStr[256];
+int SendMessageToDest(char *message) {
 	TransferResult_t SendRes;
 
-	while (0)
+	SendRes = SendString(message, m_socket);
+	if (SendRes == TRNS_FAILED)
 	{
-		//gets_s(SendStr, sizeof(SendStr)); //Reading a string from the keyboard
-
-		//if (STRINGS_ARE_EQUAL(SendStr, "quit"))
-			//return 0x555; //"quit" signals an exit from the client side
-
-		SendRes = SendString(SendStr, m_socket);
-
-		if (SendRes == TRNS_FAILED)
-		{
-			printf("Socket error while trying to write data to socket\n");
-			return 0x555;
-		}
+		printf("Socket error while trying to write data to socket\n");
+		return 0x555;
 	}
+	return 0;
+}
+
+int ClientVersusServer() {
+	int wait, server_response, user_decision;
+	char user_move[MAX_MOVE_LENGTH] = "";
+	char *AcceptedStr1 = NULL, *AcceptedStr2 = NULL, *AcceptedStr3 = NULL;
+	char *MessageToSend1 = NULL, *MessageToSend2 = NULL;
+	wait = WaitForMessage(&AcceptedStr1);
+	if (wait == 1) { //got TIMEOUT in receiving the message from server
+		//return -1; //go back to main while loop, disconnect and show initial menu to user
+	}
+
+	server_response = CheckServerResponse(AcceptedStr1);
+	if (server_response != 3) {
+		printf("Debug Print:\nServer Didn't send SERVER_PLAYER_MOVE_REQUEST\n");
+		//error?
+	}
+	GetUserMove(user_move);
+
+	PrepareMessage(&MessageToSend1, "CLIENT_PLAYER_MOVE", user_move, NULL, NULL, 1);
+
+	if (SendMessageToDest(MessageToSend1) == 0) { //bad value check
+		//error
+	}
+	//wait for server game results
+
+	wait = WaitForMessage(&AcceptedStr2);
+	if (wait == 1) { //got TIMEOUT in receiving the message from server
+		return -1; //go back to main while loop, disconnect and show initial menu to user
+	} 
+	// parse results and print to screen  (check that SERVER_GAME_RESULTS was received)
+
+	wait = WaitForMessage(&AcceptedStr3);
+	if (wait == 1) { //got TIMEOUT in receiving the message from server
+		return -1; //go back to main while loop, disconnect and show initial menu to user
+	}
+
+	//check that SERVER_GAME_OVER_MENU was received
+	user_decision = ShowPostGameMenu();
+	if (user_decision == 2) {
+		PrepareMessage(&MessageToSend2, "CLIENT_MAIN_MENU", NULL, NULL, NULL, 0);
+		SendMessageToDest(MessageToSend2);
+		return 5;
+	}
+	//else - user chose 1. Play Again
+	return 6;
+}
+
+int ShowPostGameMenu() {
+	long int user_decision = 0;
+	char user_resp[2];
+start:
+	printf("Choose what to do next:\n1. Play again\n2. Return to the main menu\n");
+	gets_s(user_resp, 2);
+	user_decision = strtol(user_resp, NULL, 10);
+	if (user_decision != 1 && user_decision != 2)
+		goto start;
+	return user_decision;
+}
+
+void GetUserMove(char* move) {
+start:
+	printf("Choose a move from the list: Rock, Paper, Scissors, Lizard or Spock:\n");
+	gets_s(move, MAX_MOVE_LENGTH);
+	_strupr_s(move, MAX_MOVE_LENGTH); // convert to uppercase
+	if (strcmp(move, "ROCK") && strcmp(move, "PAPER") && strcmp(move, "SCISSORS") && strcmp(move, "LIZARD") && strcmp(move, "SPOCK")) {
+		printf("Please choose a valid move\n");
+		goto start;
+	}
+}
+
+
+int Leaderboard() {
+	int wait, server_response;
+	char *LeaderboardMsg = NULL, *LeaderboardMenu = NULL;
+	wait = WaitForMessage(&LeaderboardMsg);
+	if (wait == 1) { //got TIMEOUT in receiving the message from server
+		return -1; //go back to main while loop, disconnect and show initial menu to user
+	}
+
+	server_response = CheckServerResponse(LeaderboardMsg);
+	//if (server_response != 2) {
+	//	printf("Debug Print:\nServer Didn't send SERVER_LEADERBOARD\n");
+	//	//error?
+	//}
+	free(LeaderboardMsg);
+
+	//parse response, print leaderboard
+
+	wait = WaitForMessage(&LeaderboardMenu);
+	if (wait == 1) { //got TIMEOUT in receiving the message from server
+		return -1; //go back to main while loop, disconnect and show initial menu to user
+	}
+
+	server_response = CheckServerResponse(LeaderboardMenu);
+	//if (server_response != 2) {
+	//	printf("Debug Print:\nServer Didn't send SERVER_LEADERBOARD_MENU\n");
+	//	//error?
+	//}
+
+	ShowLeaderboardMenu();
+
+}
+
+int ShowLeaderboardMenu() {
+	long int user_decision = 0;
+	char user_resp[2];
+start:
+	printf("Choose what to do next:\n1. Refresh Leaderboard\n2. Return to the main menu\n");
+	gets_s(user_resp, 2);
+	user_decision = strtol(user_resp, NULL, 10);
+	if (user_decision != 1 && user_decision != 2)
+		goto start;
+	return user_decision;
 }

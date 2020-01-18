@@ -1,3 +1,4 @@
+/*
 #pragma once
 
 #pragma comment(lib, "ws2_32.lib")
@@ -8,15 +9,15 @@
 
 
 #define _CRT_SECURE_NO_WARNINGS
-#define _WINSOCK_DEPRECATED_NO_WARNINGS
 #define MAX_LOOPS 3
 
 #define SEND_STR_SIZE 35
 #define STRINGS_ARE_EQUAL( Str1, Str2 ) ( strcmp( (Str1), (Str2) ) == 0 )
 
 /*oOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoO*/
-
+/*
 typedef enum { TRNS_FAILED, TRNS_DISCONNECTED, TRNS_SUCCEEDED } TransferResult_t;
+*/
 /**
  * SendBuffer() uses a socket to send a buffer.
  *
@@ -31,13 +32,15 @@ typedef enum { TRNS_FAILED, TRNS_DISCONNECTED, TRNS_SUCCEEDED } TransferResult_t
  * TRNS_SUCCEEDED - if sending succeeded
  * TRNS_FAILED - otherwise
  */
+/*
 TransferResult_t SendBuffer(const char* Buffer, int BytesToSend, SOCKET sd);
-
+*/
 /**
  * SendString() uses a socket to send a string.
  * Str - the string to send.
  * sd - the socket used for communication.
  */
+/*
 TransferResult_t SendString(const char *Str, SOCKET sd);
 
 /**
@@ -56,7 +59,9 @@ TransferResult_t SendString(const char *Str, SOCKET sd);
  * TRNS_DISCONNECTED - if the socket was disconnected
  * TRNS_FAILED - otherwise
  */
+/*
 TransferResult_t ReceiveBuffer(char* OutputBuffer, int RemainingBytesToReceive, SOCKET sd);
+*/
 
 /**
  * ReceiveString() uses a socket to receive a string, and stores it in dynamic memory.
@@ -78,7 +83,9 @@ TransferResult_t ReceiveBuffer(char* OutputBuffer, int RemainingBytesToReceive, 
  * TRNS_DISCONNECTED - if the socket was disconnected
  * TRNS_FAILED - otherwise
  */
+/*
 TransferResult_t ReceiveString(char** OutputStrPtr, SOCKET sd);
 
 
 
+*/

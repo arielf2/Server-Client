@@ -12,12 +12,14 @@ SOCKET ThreadInputs[NUM_OF_WORKER_THREADS];
 int main(int argc, char *argv[]) {
 	int Ind;
 	int Loop;
+	int return_val = -1;
 	SOCKET MainSocket = INVALID_SOCKET;
 	unsigned long Address;
 	SOCKADDR_IN service;
 	int bindRes;
 	int ListenRes;
 	HANDLE game_session_file_mutex = NULL;
+	HANDLE exit_thread = NULL;
 	// Initialize Winsock.
 	WSADATA wsaData;
 	int StartupRes = WSAStartup(MAKEWORD(2, 2), &wsaData);
@@ -85,6 +87,13 @@ int main(int argc, char *argv[]) {
 	game_session_file_mutex = CreateMutex(NULL, FALSE, "game_session_file_mutex");
 	if (game_session_file_mutex == NULL)
 		printf("Error while creating game_session_file_mutex\n");
+
+	/*oOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoO*/
+	return_val = create_leader_board();
+	if (return_val != 0)
+		printf("Error while creating leader_board_file\n");
+	/*oOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoO*/
+	exit_thread = CreateThreadSimple()
 
 	/*oOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoO*/
 
@@ -216,11 +225,13 @@ static DWORD ServiceThread(SOCKET *t_socket)
 	TransferResult_t SendRes;
 	TransferResult_t RecvRes;
 	char message_type[15] = "";
-	char* parameters;
-	char* user_name;
+	char* parameters = NULL;
+	char* user_name = NULL;
+	step step = -1;
+	char step_c[9] = "";
+	status status = -1;
 
-
-	strcpy(SendStr, SERVER_APPROVED);
+	strcpy(SendStr, "SERVER_APPROVED");
 
 	SendRes = SendString(SendStr, *t_socket);
 
@@ -284,10 +295,21 @@ static DWORD ServiceThread(SOCKET *t_socket)
 			continue;
 		}
 		else if (STRINGS_ARE_EQUAL(message_type, "CLIENT_CPU")) {
+			status = CPU;
+			step = rand_step();
+			strcpy(SendStr, "SERVER_PLAYER_MOVE_REQUEST");
+			SendRes = SendString(SendStr, *t_socket);
 
+			if (SendRes == TRNS_FAILED)
+			{
+				printf("Service socket error while writing, closing thread.\n");
+				closesocket(*t_socket);
+				return 1;
+			}
+			
 		}
 		else if (STRINGS_ARE_EQUAL(message_type, "CLIENT_VERSUS")) {
-
+			status = VERSUS;
 		}
 		else if (STRINGS_ARE_EQUAL(message_type, "CLIENT_LEADERBOARD")) {
 			SendRes = send_leader_board(*t_socket);
@@ -298,17 +320,57 @@ static DWORD ServiceThread(SOCKET *t_socket)
 				}
 		}
 		else if (STRINGS_ARE_EQUAL(message_type, "CLIENT_PLAYER_MOVE")) {
+			if (status = CPU) {
+				int parameter_0 = parameters[0] - '0';
+				int winner = -1;
+				winner = find_who_wins(step, parameter_0);
+				if (winner == 0) {
+					replace_enum_with_string(step, step_c);
+					sprintf(SendStr, "SERVER_GAME_RESULTS:server;%s;%s,server\n", step_c, parameters[0]);
+				}
+				else if (winner == 1) {
+					replace_enum_with_string(step, step_c);
+					sprintf(SendStr, "SERVER_GAME_RESULTS:server;%s;%s,%s\n", step_c, parameters[0], user_name);
+				}
+				else 
+					printf("Error in player move\n");
 
+			}
+			else if (status = VERSUS) {
+				/*send results when playing against other player */
+			}
+
+			SendRes = SendString(SendStr, *t_socket);
+
+			if (SendRes == TRNS_FAILED)
+			{
+				printf("Service socket error while writing, closing thread.\n");
+				closesocket(*t_socket);
+				return 1;
+			}
 		}
 		else if (STRINGS_ARE_EQUAL(message_type, "CLIENT_REPLAY")) {
+			if (status == CPU) {
+				step = rand_step();
+				strcpy(SendStr, "SERVER_PLAYER_MOVE_REQUEST");
+				SendRes = SendString(SendStr, *t_socket);
+			}
+			else if (status == VERSUS) {
 
+			}
+			if (SendRes == TRNS_FAILED)
+			{
+				printf("Service socket error while writing, closing thread.\n");
+				closesocket(*t_socket);
+				return 1;
+			}
 		}
 		else if (STRINGS_ARE_EQUAL(message_type, "CLIENT_REFRESH")) {
-
+			/*bonus*/
 		}
 		else if (STRINGS_ARE_EQUAL(message_type, "CLIENT_DISCONNECT"))
 		{
-			
+			return 0;
 		}
 		else
 		{
@@ -424,12 +486,14 @@ int write_in_leader_board(char user_name[], int win) {
 int send_leader_board(SOCKET *t_socket) {
 	FILE* fp;
 	char SendStr[SEND_STR_SIZE];
+	char line_for_send[255] = "";
 	TransferResult_t SendRes;
 	fopen_s(&fp, "LeaderBoard.csv", "r");
 
 	while (feof(fp)) {
-		fgets(SendStr, 255, fp);
 
+		fgets(line_for_send, 255, fp);
+		replace_comma_with_tab(line_for_send, SendStr);
 		SendRes = SendString(SendStr, *t_socket);
 
 		if (SendRes == TRNS_FAILED)
@@ -467,4 +531,98 @@ int parse_command(char *command, char* message_type, char* parameters) {
 	return counter;
 	
 
+}
+int create_leader_board() {
+	FILE* fp;
+	int return_val = -1;
+	return_val = fopen_s(&fp, "LeaderBoard.csv", "w");
+	if (return_val != 0)
+		return 1;
+	fprintf(fp, "Name,Won,Lost,W/L Ratio\n");
+	return 0;
+}
+
+void replace_comma_with_tab(char* line, char* newline) {
+	int i = 0;
+	while (*(line + i) != '\n')
+	{
+		if (*(line + i) == ';')
+			*(line + i) != '\t';//is it tab?
+		i++;
+	}
+}
+int rand_step() {
+	int r = rand() % 5;
+	return r;
+}
+
+int find_who_wins(step first_step, step second_step) {
+	//if first eins returns 0 if second return 1
+	if (first_step == SPOCK & second_step == ROCK)
+		return 0;
+	else if (first_step == ROCK & second_step == SPOCK)
+		return 1;
+	else if (first_step == ROCK & second_step == PAPER)
+		return 1;
+	else if (first_step == PAPER & second_step == ROCK)
+		return 0;
+	else if (first_step == SCISSORS & second_step == PAPER)
+		return 0;
+	else if (first_step == PAPER & second_step == SCISSORS)
+		return 1;
+	else if (first_step == LIZARD & second_step == SCISSORS)
+		return 1;
+	else if (first_step == SCISSORS & second_step == LIZARD)
+		return 0;
+	else if (first_step == LIZARD & second_step == SPOCK)
+		return 0;
+	else if (first_step == SPOCK & second_step == LIZARD)
+		return 1;
+	else if (first_step == ROCK & second_step == LIZARD)
+		return 0;
+	else if (first_step == LIZARD & second_step == ROCK)
+		return 1;
+	else if (first_step == PAPER & second_step == SPOCK)
+		return 0;
+	else if (first_step == SPOCK & second_step == PAPER)
+		return 1;
+	else if (first_step == LIZARD & second_step == PAPER)
+		return 0;
+	else if (first_step == PAPER & second_step == LIZARD)
+		return 1;
+	else if (first_step == SCISSORS & second_step == ROCK)
+		return 1;
+	else if (first_step == ROCK & second_step == SCISSORS)
+		return 0;
+	else if (first_step == SPOCK & second_step == SCISSORS)
+		return 0;
+	else if (first_step == SCISSORS & second_step == SPOCK)
+		return 1;
+	else {
+		printf("Error when calc winner\n");
+			return 2;
+	}
+}
+void replace_enum_with_string(step step, char* string){
+	switch (step) {
+	case SPOCK: strcpy(string, "SPOCK");
+	case SCISSORS: strcpy(string, "SCISSORS");
+	case PAPER: strcpy(string, "PAPER");
+	case ROCK: strcpy(string, "ROCK");
+	case LIZARD: strcpy(string, "LIZARD");
+	}
+}
+
+static HANDLE CreateThreadSimple(LPTHREAD_START_ROUTINE p_start_routine,
+	LPDWORD p_thread_id)
+{
+	/* Should check for NULL pointers. Skipped for the sake of simplicity. */
+
+	return CreateThread(
+		NULL,            /*  default security attributes */
+		0,               /*  use default stack size */
+		p_start_routine, /*  thread function */
+		NULL,            /*  argument to thread function */
+		0,               /*  use default creation flags */
+		p_thread_id);    /*  returns the thread identifier */
 }

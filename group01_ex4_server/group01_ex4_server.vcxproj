@@ -72,6 +72,9 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <IncludePath>($ProjectDir)\..\Share;$(IncludePath)</IncludePath>
   </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <IncludePath>$(ProjectDir)\..\Share;$(IncludePath)</IncludePath>
+  </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
       <WarningLevel>Level3</WarningLevel>
@@ -117,10 +120,12 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="..\Share\SharedFuncs.c" />
     <ClCompile Include="main.c" />
     <ClCompile Include="SendRecv.c" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="..\Share\SharedFuncs.h" />
     <ClInclude Include="Header.h" />
     <ClInclude Include="SendRecv.h" />
   </ItemGroup>

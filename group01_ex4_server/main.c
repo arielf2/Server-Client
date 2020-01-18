@@ -20,6 +20,8 @@ int main(int argc, char *argv[]) {
 	int ListenRes;
 	HANDLE game_session_file_mutex = NULL;
 	HANDLE exit_thread = NULL;
+	thread_param_struct* thread_param;
+	int thread_id;
 	// Initialize Winsock.
 	WSADATA wsaData;
 	int StartupRes = WSAStartup(MAKEWORD(2, 2), &wsaData);
@@ -93,7 +95,7 @@ int main(int argc, char *argv[]) {
 	if (return_val != 0)
 		printf("Error while creating leader_board_file\n");
 	/*oOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoO*/
-	exit_thread = CreateThreadSimple()
+	
 
 	/*oOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoO*/
 
@@ -108,6 +110,9 @@ int main(int argc, char *argv[]) {
 	// Initialize all thread handles to NULL, to mark that they have not been initialized
 	for (Ind = 0; Ind < NUM_OF_WORKER_THREADS; Ind++)
 		ThreadHandles[Ind] = NULL;
+
+	thread_param->MainSocket = &MainSocket;
+	exit_thread = CreateThreadSimple(exit_thread, thread_param, &thread_id);
 
 	printf("Waiting for a client to connect...\n");
 
@@ -224,10 +229,11 @@ static DWORD ServiceThread(SOCKET *t_socket)
 	BOOL Done = FALSE;
 	TransferResult_t SendRes;
 	TransferResult_t RecvRes;
+	step others_step = 0;
 	char message_type[15] = "";
 	char* parameters = NULL;
 	char* user_name = NULL;
-	step step = -1;
+	step step = 0;
 	char step_c[9] = "";
 	status status = -1;
 
@@ -309,7 +315,30 @@ static DWORD ServiceThread(SOCKET *t_socket)
 			
 		}
 		else if (STRINGS_ARE_EQUAL(message_type, "CLIENT_VERSUS")) {
-			status = VERSUS;
+			if (check_if_file_exists()) {
+				status = VERSUS;//change only here?
+				strcpy(SendStr, "SERVER_INVITE");
+				SendRes = SendString(SendStr, *t_socket);
+
+				if (SendRes == TRNS_FAILED)
+				{
+					printf("Service socket error while writing, closing thread.\n");
+					closesocket(*t_socket);
+					return 1;
+				}
+
+				strcpy(SendStr, "SERVER_PLAYER_MOVE_REQUEST");
+				SendRes = SendString(SendStr, *t_socket);
+
+				if (SendRes == TRNS_FAILED)
+				{
+					printf("Service socket error while writing, closing thread.\n");
+					closesocket(*t_socket);
+					return 1;
+				}
+
+			}
+
 		}
 		else if (STRINGS_ARE_EQUAL(message_type, "CLIENT_LEADERBOARD")) {
 			SendRes = send_leader_board(*t_socket);
@@ -332,12 +361,28 @@ static DWORD ServiceThread(SOCKET *t_socket)
 					replace_enum_with_string(step, step_c);
 					sprintf(SendStr, "SERVER_GAME_RESULTS:server;%s;%s,%s\n", step_c, parameters[0], user_name);
 				}
+				else if (winner == 2) {
+					replace_enum_with_string(step, step_c);
+					sprintf(SendStr, "SERVER_GAME_RESULTS:server;%s;%s\n", step_c, parameters[0]);
+				}
 				else 
 					printf("Error in player move\n");
 
 			}
 			else if (status = VERSUS) {
 				/*send results when playing against other player */
+				step = 0;
+				int win = -1;
+				char *line_versus = NULL;
+				write_move_to_file(parameters[0]);
+				while (check_if_file_has_2_lines(line_versus) != 2) {
+					Sleep(1);
+
+				}
+				replace_string_with_enum(&step, parameters[0]);
+				replace_string_with_enum(&others_step, line_versus);//change to another step
+				win = find_who_wins(others_step, step); //change to another step
+				/////////////////////continue
 			}
 
 			SendRes = SendString(SendStr, *t_socket);
@@ -394,10 +439,11 @@ static DWORD ServiceThread(SOCKET *t_socket)
 	return 0;
 }
 
-int find_other_player() {
+int check_if_file_exists() {
 	FILE* fp;
 	int l_wait_code = -1;
 	int l_ret_val = -1;
+	int exists = -1;
 	HANDLE l_mutex_handle = NULL;
 	l_mutex_handle = OpenMutex(SYNCHRONIZE, TRUE, "game_session_file_mutex");
 
@@ -408,20 +454,55 @@ int find_other_player() {
 
 	}
 
-	fopen_s(&fp, "GameSession.txt", "r");
+	fp = fopen("GameSession.txt", "r");
+	
 	l_ret_val = ReleaseMutex(l_mutex_handle);
 	if (FALSE == l_ret_val)
 	{
 		printf("Error when releasing game_session_file_mutex\n");
 	}
 
-	if (fp) {
+	if (fp != NULL) {
 		fclose(fp);
 		return 1;
 	}
 	else
 		return 0;
 }
+int check_if_file_has_2_lines(char *line) {
+	FILE* fp;
+	int l_wait_code = -1;
+	int l_ret_val = -1;
+	char *line = NULL;
+	int counter = 0; 
+	HANDLE l_mutex_handle = NULL;
+	l_mutex_handle = OpenMutex(SYNCHRONIZE, TRUE, "game_session_file_mutex");
+
+	l_wait_code = WaitForSingleObject(l_mutex_handle, INFINITE);
+	if (WAIT_OBJECT_0 != l_wait_code)
+	{
+		printf("Error when waiting for mutex\n");
+
+	}
+
+	fp = fopen("GameSession.txt", "r");
+	if (fp == NULL) {
+		printf("Error when check_if_file_has_2_lines\n");
+		return -1;
+	}
+	while (feof(fp)) {
+		fgets(line, 255, fp);
+		counter++;
+	}
+	l_ret_val = ReleaseMutex(l_mutex_handle);
+	if (FALSE == l_ret_val)
+	{
+		printf("Error when releasing game_session_file_mutex\n");
+	}
+	return counter;
+	
+}
+
 void write_move_to_file(char *move) {
 	FILE* fp;
 	int l_wait_code = -1;
@@ -598,9 +679,23 @@ int find_who_wins(step first_step, step second_step) {
 		return 0;
 	else if (first_step == SCISSORS & second_step == SPOCK)
 		return 1;
+	else if (first_step == SCISSORS & second_step == SCISSORS)
+		return 2;
+	else if (first_step == SPOCK & second_step == SPOCK)
+		return 2;
+
+	else if (first_step == ROCK & second_step == ROCK)
+		return 2;
+
+	else if (first_step == PAPER & second_step == PAPER)
+		return 2;
+
+	else if (first_step == LIZARD & second_step == LIZARD)
+		return 2;
+
 	else {
 		printf("Error when calc winner\n");
-			return 2;
+			return 3;
 	}
 }
 void replace_enum_with_string(step step, char* string){
@@ -612,17 +707,88 @@ void replace_enum_with_string(step step, char* string){
 	case LIZARD: strcpy(string, "LIZARD");
 	}
 }
-
-static HANDLE CreateThreadSimple(LPTHREAD_START_ROUTINE p_start_routine,
-	LPDWORD p_thread_id)
+void replace_string_with_enum(step *step, char* string) {
+	if(strcmp(string, "SPOCK"))
+		*step = SPOCK;
+	else if(strcmp(string, "PAPER"))
+		*step = PAPER;
+	else if (strcmp(string, "LIZARD"))
+		*step = LIZARD;
+	else if (strcmp(string, "SCISSORS"))
+		*step = SCISSORS;
+	else if (strcmp(string, "ROCK"))
+		*step = ROCK;
+	else
+		printf("Error in replace_string_with_enum\n");
+}
+HANDLE CreateThreadSimple(LPTHREAD_START_ROUTINE p_start_routine, LPVOID p_thread_parameters, LPDWORD p_thread_id)
 {
-	/* Should check for NULL pointers. Skipped for the sake of simplicity. */
+	HANDLE thread_handle = NULL;
 
-	return CreateThread(
-		NULL,            /*  default security attributes */
-		0,               /*  use default stack size */
-		p_start_routine, /*  thread function */
-		NULL,            /*  argument to thread function */
-		0,               /*  use default creation flags */
-		p_thread_id);    /*  returns the thread identifier */
+	if (NULL == p_start_routine)
+	{
+		printf("Error when creating a thread");
+		printf("Received null pointer");
+		exit(1);
+	}
+
+	if (NULL == p_thread_id)
+	{
+		printf("Error when creating a thread");
+		printf("Received null pointer");
+		exit(1);
+	}
+
+	thread_handle = CreateThread(
+		NULL,                /*  default security attributes */
+		0,                   /*  use default stack size */
+		p_start_routine,     /*  thread function */
+		p_thread_parameters, /*  argument to thread function */
+		0,                   /*  use default creation flags */
+		p_thread_id);        /*  returns the thread identifier */
+
+	return thread_handle;
+}
+//DWORD WINAPI exit_thread(LPVOID lpParam)
+
+DWORD WINAPI exit_thread(LPVOID lpParam)
+{
+	//guest *guest_params;
+	thread_param_struct *thread_param;
+	int return_val = 0;
+
+	/* Check if lpParam is NULL */
+	if (NULL == lpParam)
+	{
+		return -1;
+	}
+
+	/*
+	* Convert (void *) to parameters type.
+	*/
+	thread_param = (thread_param_struct*)lpParam;
+	exit_function(thread_param);
+
+
+	return 0;
+}
+void exit_function(thread_param_struct *thread_param) {
+	extern HANDLE ThreadHandles[NUM_OF_WORKER_THREADS];
+	extern SOCKET ThreadInputs[NUM_OF_WORKER_THREADS];
+	int socket_return_val = -1;
+	int return_val = -1;
+	char* input;
+	while (1) {
+		scanf(input);
+		if (strcmp(input, "exit") == 0) {
+			/*close handles and sockets*/
+			for (int i = 0; i < NUM_OF_WORKER_THREADS; i++) {
+				closesocket(ThreadInputs[i]);
+				if (socket_return_val == 0)					printf("Error when exiting\n");
+				CloseHandle(ThreadHandles[i]);				if (return_val == 0)					printf("Error when exiting\n");
+			}
+			closesocket(*thread_param->MainSocket);
+			return 0;
+		}
+	}
 }

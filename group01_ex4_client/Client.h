@@ -14,8 +14,11 @@
 #define SERVER_DENIED "SERVER_DENIED\n"
 #define SERVER_MAIN_MENU "SERVER_MAIN_MENU\n"
 #define SERVER_PLAYER_MOVE_REQUEST "SERVER_PLAYER_MOVE_REQUEST\n"
+#define SERVER_NO_OPPONENTS "SERVER_NO_OPPONENTS\n"
 
 #define SERVER_WAIT_TIMEOUT 15
+#define ERROR_TIMEOUT -1
+
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
@@ -77,7 +80,7 @@ int GameFlow();
 
 /*	Description: Initiates a game between client and server, by sending and receiving the messages according to the requirements
 	Parameters: None
-	Returns: 5 if user wants to finish game, 6 for replay */
+	Returns: 5 if user wants to finish game, 6 for replay, -1 for TIMEOUT error during game */
 int ClientVersusServer();
 
 /*	Description: Gets the chosen move by the user through the keyboard
@@ -85,7 +88,10 @@ int ClientVersusServer();
 	Returns: None */
 void GetUserMove(char* move);
 
-
+/*	Description: Initiates a game between client and client, by sending and receiving the messages according to the requirements
+	Parameters: None
+	Returns: 5 if user wants to finish game, 6 for replay, -1 for TIMEOUT error during game */
+int ClientVersusClient();
 
 /*	Description: 
 	Parameters:
@@ -95,8 +101,9 @@ int Leaderboard();
 
 /*	Description: Wait for the server to send a message. TIMEOUT if no response within 15 seconds
 	Parameters:  AcceptedString - pointer to a char pointer, that will eventually point to the received string
+		         int wait period - number of seconds to wait for message receiving.
 	Returns:	 error code	*/
-int WaitForMessage(char **AcceptedString);
+int WaitForMessage(char **AcceptedString, int wait_period);
 
 
 /*	Description: Send the client request to the server, with the name of the user

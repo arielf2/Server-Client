@@ -70,7 +70,7 @@ void MainClient(char* ip_address, char* port, char* username)
 			char *AcceptedStr = NULL;
 			wait = WaitForMessage(&AcceptedStr, SERVER_WAIT_TIMEOUT);
 			
-			if (wait == 1) { // TIMEOUT - show menu
+			if (wait == TIMEOUT_ERROR) { // TIMEOUT - show menu
 				closesocket(m_socket); //disconnect from server
 				if (ReconnectMenu(1, ip_address, port) == 1) {
 					m_socket = CreateAndCheckSocket();
@@ -81,7 +81,7 @@ void MainClient(char* ip_address, char* port, char* username)
 				return;
 			}
 
-			//else - wait = 0 so we received a valid message
+			//else - we received a valid message
 			server_resp = CheckServerResponse(AcceptedStr);
 			if (server_resp == 1) { //server denied - show menu
 				closesocket(m_socket); //disconnect from server
@@ -97,7 +97,7 @@ void MainClient(char* ip_address, char* port, char* username)
 			else { //server resp = 0 - server approved
 				printf("Connected to server on %s:%s\n", ip_address, port);
 				game_res = GameFlow();
-				if (game_res == ERROR_TIMEOUT) { // TIMEOUT during game
+				if (game_res == TIMEOUT_ERROR) { // TIMEOUT during game
 					closesocket(m_socket); //disconnect from server
 					if (ReconnectMenu(1, ip_address, port) == 1) {
 						m_socket = CreateAndCheckSocket();
@@ -160,7 +160,7 @@ int WaitForMessage(char **AcceptedString, int wait_period) {
 
 	if (error == 0) {
 		printf("TIMEOUT: %d seconds passed and no response from server, in WaitForMessage, ReceiveData client\n", wait_period);
-		return 1;
+		return TIMEOUT_ERROR;
 	}
 	RecvRes = ReceiveString(AcceptedString, m_socket);
 
@@ -177,10 +177,11 @@ int WaitForMessage(char **AcceptedString, int wait_period) {
 	else
 	{
 		//printf("accepted string is: %s\n", *AcceptedString);
+		//return error;
 	}
 
 	//free(AcceptedStr);
-	return error;
+	//return error;
 
 }
 
@@ -218,6 +219,8 @@ int CheckServerResponse(char* response) {
 	//	return 1;
 	//}
 
+
+	// Messages without parameters
 	int resp = -1;
 	if (CompareProtocolMessages(response, SERVER_APPROVED) == 0) {
 		resp = 0;
@@ -228,13 +231,16 @@ int CheckServerResponse(char* response) {
 	else if (CompareProtocolMessages(response, SERVER_MAIN_MENU) == 0) {
 		resp = 2;
 	}
-	else if ((CompareProtocolMessages(response, SERVER_PLAYER_MOVE_REQUEST) == 0))
+	else if ((CompareProtocolMessages(response, SERVER_PLAYER_MOVE_REQUEST) == 0)) {
 		resp = 3;
-	//else if ((CompareProtocolMessages(response), SERVER_GAME_)
-
-
-	else if ((CompareProtocolMessages(response, SERVER_NO_OPPONENTS) == 0))
+	}
+	else if ((CompareProtocolMessages(response, SERVER_NO_OPPONENTS) == 0)) {
 		resp = 9;
+	}
+
+	// Messages with parameters
+
+
 	free(response);
 	return resp;
 }
@@ -248,11 +254,12 @@ int GameFlow() {
 	//2 Play against the server
 	//3 View the leaderboard
 	//4 Quit
+
 	while (1) {
 		char *AcceptedStr = NULL;
 		wait = WaitForMessage(&AcceptedStr, SERVER_WAIT_TIMEOUT);
-		if (wait == 1) { //got TIMEOUT in receiving the message from server
-			return ERROR_TIMEOUT; //go back to main while loop, disconnect and show initial menu to user
+		if (wait == TIMEOUT_ERROR) { //got TIMEOUT in receiving the message from server
+			return TIMEOUT_ERROR; //go back to main while loop, disconnect and show initial menu to user
 		}
 		server_response = CheckServerResponse(AcceptedStr);
 		if (server_response != 2) {
@@ -265,53 +272,49 @@ int GameFlow() {
 		if (user_response == 1) {
 			//play against another client
 			PrepareMessage(&MessageToSend, "CLIENT_VERSUS", NULL, NULL, NULL, 0);
-			if (SendMessageToDest(MessageToSend) != 0) {
+			if (SendMessageToDest(MessageToSend, &m_socket) != 0) {
 				//error sending message
 			}
 			//WaitForOpponent()
 			game_ret_val = ClientVersusClient();
-			if (game_ret_val != 6) { //Client Versus Client has three return values: 5 for game done, 6 for replay, -1 for error timeout
+			if (game_ret_val != 6) { //
 				// make some game loop here. NO - loop is inside CvC
 			}
-			free(MessageToSend);
+			//free(MessageToSend);
 
 		}
 		else if (user_response == 2) {
 			//play against server
 			PrepareMessage(&MessageToSend, "CLIENT_CPU", NULL, NULL, NULL, 0);
-			if (SendMessageToDest(MessageToSend) != 0) {
+			if (SendMessageToDest(MessageToSend, &m_socket) != 0) {
 				//error sending message
 			}
-			free(MessageToSend);
-			while (finish_game == 0) {
-				game_ret_val = ClientVersusServer();
-				if (game_ret_val == 5) //Client Versus Server has three return values: 5 for game done, 6 for replay, -1 for timeout
-					finish_game = 1;
-				else if (game_ret_val == ERROR_TIMEOUT) //timeout during one of the messages in ClientVServer
-					return ERROR_TIMEOUT;
-				// else, ClientVersusServer returned 6 which is replay - continue while loop.
+			//free(MessageToSend);
+	
+			if (ClientVersusServer() == TIMEOUT_ERROR) { //game done;
+				return TIMEOUT_ERROR;
 			}
-			
-			continue; // if we reached here, user decided to go back to main menu;
-
+			else continue;
+			//else
+			//	continue;//game done, go back to loop, show main menu..
 
 		}
 		else if (user_response == 3) {
 			// view leader board
 			PrepareMessage(&MessageToSend, "CLIENT_LEADERBOARD", NULL, NULL, NULL, 0);
-			if (SendMessageToDest(MessageToSend) != 0) {
+			if (SendMessageToDest(MessageToSend, &m_socket) != 0) {
 				//error sending message
 			}
 			Leaderboard();
-			free(MessageToSend);
+			//free(MessageToSend);
 		}
 		else
 		{//user response == 4 quit
 			PrepareMessage(&MessageToSend, "CLIENT_DISCONNECT", NULL, NULL, NULL, 0);
-			if (SendMessageToDest(MessageToSend) != 0) {
+			if (SendMessageToDest(MessageToSend, &m_socket) != 0) {
 				//error sending message
 			}
-			free(MessageToSend);
+			//free(MessageToSend);
 			return 4;
 		}
 	}
@@ -331,44 +334,7 @@ start:
 
 
 
-int PrepareMessage(char **Dest, char *message, char* parameter_1, char* parameter_2, char* parameter_3, int num_of_valid_params) {
 
-	if (*Dest != NULL) {
-		printf("Debug Print:\n Dest has to be pointer to null, so it can be malloced\n");
-		return 1;
-	}
-	int len = 0;
-	//len(message) + ':' = len(message) + 1
-	//number of ; = num of valid params - 1
-	//len of params:
-	// + 1 for \n 
-	len = GetTotalLen(parameter_1, parameter_2, parameter_3, num_of_valid_params) + strlen(message) + 1 + (num_of_valid_params - 1) + 2;
-
-	*Dest = (char*)malloc(len * sizeof(char));
-	if (*Dest == NULL) {
-		printf("Error in allocating memory\n");
-		return 1;
-	}
-
-	strcpy_s(*Dest, len, message); //THIS_IS_MESSAGE
-	strcat_s(*Dest, len, ":");
-	if (num_of_valid_params != 0) {
-		// at least one valid parameter
-		strcat_s(*Dest, len, (const char*) parameter_1);
-		if (num_of_valid_params >= 2) {
-			strcat_s(*Dest, len, ";");
-			strcat_s(*Dest, len, (const char*) parameter_2);
-			if (num_of_valid_params == 3) {
-				strcat_s(*Dest, len, ";");
-				strcat_s(*Dest, len, (const char*) parameter_3);
-			}
-		}
-	}
-	//printf("\nMessage is: %s\n", *Dest);
-	*(*Dest + strlen(*Dest)) = '\n'; //Messages need to end with '\n'
-
-	return 0;
-}
 
 int GetTotalLen(char* parameter_1, char* parameter_2, char* parameter_3, int num_of_valid_params) {
 	int len = 0;
@@ -385,72 +351,83 @@ int GetTotalLen(char* parameter_1, char* parameter_2, char* parameter_3, int num
 	return len;
 }
 
-int SendMessageToDest(char *message) {
+int SendMessageToDest(char *message, SOCKET *local_socket) {
+	int return_val = 0;
 	TransferResult_t SendRes;
 
-	SendRes = SendString(message, m_socket);
+	SendRes = SendString(message, *local_socket);
 	if (SendRes == TRNS_FAILED)
 	{
 		printf("Socket error while trying to write data to socket\n");
-		return 0x555;
+		return_val = 0x555;
 	}
-	return 0;
+	free(message);
+	return return_val;
 }
 
 int ClientVersusServer() {
 	int wait, server_response, user_decision;
+	
 	char user_move[MAX_MOVE_LENGTH] = "";
+	while (1) { // Game Loop
 	char *MoveRequest = NULL, *GameResults = NULL, *GameOverMenu = NULL;
 	char *PlayerMove = NULL, *ClientMainMenu = NULL, *ClientReplay = NULL;
 
-	wait = WaitForMessage(&MoveRequest, SERVER_WAIT_TIMEOUT);
-	if (wait == 1) { //got TIMEOUT in receiving the message from server
-		return ERROR_TIMEOUT; //go back to main while loop, disconnect and show initial menu to user
+	// Wait and check for SERVER_PLAYER_MOVE_REQUEST message from server
+
+		wait = WaitForMessage(&MoveRequest, SERVER_WAIT_TIMEOUT);
+		if (wait == TIMEOUT_ERROR) { //got TIMEOUT in receiving the message from server
+			return TIMEOUT_ERROR; //go back to main while loop, disconnect and show initial menu to user
+		}
+
+		server_response = CheckServerResponse(MoveRequest);
+		printf("Move request: %s", MoveRequest);
+		if (server_response != 3) {
+			printf("Debug Print:\nServer Didn't send SERVER_PLAYER_MOVE_REQUEST\n");
+			//error?
+		}
+
+	// Get user choice of move, and send it to server
+
+		GetUserMove(user_move);
+		PrepareMessage(&PlayerMove, "CLIENT_PLAYER_MOVE", user_move, NULL, NULL, 1);
+		printf("Player Move: %s", PlayerMove);
+		if (SendMessageToDest(PlayerMove, &m_socket) == 0) { //bad value check
+			//error
+		}
+	
+	// Wait and check for SERVER_GAME_RESULTS message from server
+
+		wait = WaitForMessage(&GameResults, SERVER_WAIT_TIMEOUT);
+
+		if (wait == TIMEOUT_ERROR) //got TIMEOUT in receiving the message from server
+			return TIMEOUT_ERROR; //go back to main while loop, disconnect and show initial menu to user
+
+		// parse results and print to screen  (check that SERVER_GAME_RESULTS was received)
+		//CheckServerResponse(GameResults);
+		printf("Game results: %s", GameResults);
+
+	// Wait and check for game over menu message from server
+
+		wait = WaitForMessage(&GameOverMenu, SERVER_WAIT_TIMEOUT);
+		if (wait == TIMEOUT_ERROR) //got TIMEOUT in receiving the message from server
+			return TIMEOUT_ERROR; //go back to main while loop, disconnect and show initial menu to user
+
+	// Show game over menu and get user choice for next action
+
+		user_decision = ShowPostGameMenu();
+		if (user_decision == 2) {
+			PrepareMessage(&ClientMainMenu, "CLIENT_MAIN_MENU", NULL, NULL, NULL, 0);
+			SendMessageToDest(ClientMainMenu, &m_socket);
+			break;	
+		}
+
+		//else - user chose 1. Play Again
+		PrepareMessage(&ClientReplay, "CLIENT_REPLAY", NULL, NULL, NULL, 0);
+		SendMessageToDest(ClientReplay, &m_socket);
 	}
 
-	server_response = CheckServerResponse(MoveRequest);
-	printf("Move request: %s", MoveRequest);
-	if (server_response != 3) {
-		printf("Debug Print:\nServer Didn't send SERVER_PLAYER_MOVE_REQUEST\n");
-		//error?
-	}
-	GetUserMove(user_move);
-
-	PrepareMessage(&PlayerMove, "CLIENT_PLAYER_MOVE", user_move, NULL, NULL, 1);
-	printf("Player Move: %s", PlayerMove);
-	if (SendMessageToDest(PlayerMove) == 0) { //bad value check
-		//error
-	}
-	//wait for server game results
-
-	wait = WaitForMessage(&GameResults, SERVER_WAIT_TIMEOUT);
-
-	if (wait == 1) { //got TIMEOUT in receiving the message from server
-		return ERROR_TIMEOUT; //go back to main while loop, disconnect and show initial menu to user
-	} 
-	// parse results and print to screen  (check that SERVER_GAME_RESULTS was received)
-	//CheckServerResponse(GameResults);
-	printf("Game results: %s", GameResults);
-
-	wait = WaitForMessage(&GameOverMenu, SERVER_WAIT_TIMEOUT);
-	printf("Gameover menu: %s", GameOverMenu);
-	if (wait == 1) { //got TIMEOUT in receiving the message from server
-		return ERROR_TIMEOUT; //go back to main while loop, disconnect and show initial menu to user
-	}
-
-	//check that SERVER_GAME_OVER_MENU was received
-	user_decision = ShowPostGameMenu();
-	if (user_decision == 2) {
-		PrepareMessage(&ClientMainMenu, "CLIENT_MAIN_MENU", NULL, NULL, NULL, 0);
-		SendMessageToDest(ClientMainMenu);
-		return 5;
-	}
-	//else - user chose 1. Play Again
-	PrepareMessage(&ClientReplay, "CLIENT_REPLAY", NULL, NULL, NULL, 0);
-	printf("replay: %s", ClientReplay);
-	SendMessageToDest(ClientReplay);
-
-	return 6;
+	return 5;
 }
 
 int ShowPostGameMenu() {
@@ -480,8 +457,8 @@ int Leaderboard() {
 	int wait, server_response;
 	char *LeaderboardMsg = NULL, *LeaderboardMenu = NULL;
 	wait = WaitForMessage(&LeaderboardMsg, SERVER_WAIT_TIMEOUT);
-	if (wait == 1) { //got TIMEOUT in receiving the message from server
-		return ERROR_TIMEOUT; //go back to main while loop, disconnect and show initial menu to user
+	if (wait == TIMEOUT_ERROR) { //got TIMEOUT in receiving the message from server
+		return TIMEOUT_ERROR; //go back to main while loop, disconnect and show initial menu to user
 	}
 
 	server_response = CheckServerResponse(LeaderboardMsg);
@@ -494,8 +471,8 @@ int Leaderboard() {
 	//parse response, print leaderboard
 
 	wait = WaitForMessage(&LeaderboardMenu, SERVER_WAIT_TIMEOUT);
-	if (wait == 1) { //got TIMEOUT in receiving the message from server
-		return ERROR_TIMEOUT; //go back to main while loop, disconnect and show initial menu to user
+	if (wait == TIMEOUT_ERROR) { //got TIMEOUT in receiving the message from server
+		return TIMEOUT_ERROR; //go back to main while loop, disconnect and show initial menu to user
 	}
 
 	server_response = CheckServerResponse(LeaderboardMenu);
@@ -524,12 +501,12 @@ start:
 int ClientVersusClient() {
 	int wait, server_response, user_decision, game_not_finished = 1;
 	char user_move[MAX_MOVE_LENGTH] = "";
-	char *ServerInviteOrNoOpponent = NULL, *MoveRequestOrOpponentQuit = NULL, *GameResults = NULL, *GameOverMenu = NULL;
-	char *PlayerMove = NULL, *ClientMainMenu = NULL, *ClientReplay = NULL;
+	char *ServerInviteOrNoOpponent = NULL;
+	char *ClientMainMenu = NULL;
 
 	wait = WaitForMessage(&ServerInviteOrNoOpponent, SERVER_WAIT_TIMEOUT * 2); //need to wait for 30 seconds for another opponent
-	if (wait == 1) { //got TIMEOUT in receiving the message from server
-		return ERROR_TIMEOUT; //go back to main while loop, disconnect and show initial menu to user
+	if (wait == TIMEOUT_ERROR) { //got TIMEOUT in receiving the message from server
+		return TIMEOUT_ERROR; //go back to main while loop, disconnect and show initial menu to user
 	}
 
 	server_response = CheckServerResponse(ServerInviteOrNoOpponent); // need to parse parameters
@@ -537,7 +514,7 @@ int ClientVersusClient() {
 	if (server_response == 9) { //no opponent
 		//return to main menu: send "CLIENT MAIN MENU
 		PrepareMessage(&ClientMainMenu, "CLIENT_MAIN_MENU", NULL, NULL, NULL, 0);
-		SendMessageToDest(ClientMainMenu);
+		SendMessageToDest(ClientMainMenu, &m_socket);
 		return 5;
 	}
 		
@@ -546,11 +523,13 @@ int ClientVersusClient() {
 		//error?
 	}
 
-
 	while (game_not_finished) {
-		wait = WaitForMessage(&MoveRequestOrOpponentQuit, 15);
-		if (wait == 1) { //got TIMEOUT in receiving the message from server
-			return ERROR_TIMEOUT; //go back to main while loop, disconnect and show initial menu to user
+		char *MoveRequestOrOpponentQuit = NULL, *GameResults = NULL, *GameOverMenu = NULL;
+		char *PlayerMove = NULL, *ClientReplay = NULL;
+
+		wait = WaitForMessage(&MoveRequestOrOpponentQuit, SERVER_WAIT_TIMEOUT * 2);
+		if (wait == TIMEOUT_ERROR) { //got TIMEOUT in receiving the message from server
+			return TIMEOUT_ERROR; //go back to main while loop, disconnect and show initial menu to user
 		}
 		server_response = CheckServerResponse(MoveRequestOrOpponentQuit); // need to parse parameters
 		if (server_response == 13113) { // 13113 is (example)  SERVER OPPONENT QUIT
@@ -567,43 +546,40 @@ int ClientVersusClient() {
 		GetUserMove(user_move);
 		PrepareMessage(&PlayerMove, "CLIENT_PLAYER_MOVE", user_move, NULL, NULL, 1);
 		//printf("Player Move: %s", PlayerMove);
-		if (SendMessageToDest(PlayerMove) == 0) { //bad value check
+		if (SendMessageToDest(PlayerMove, &m_socket) == 0) { //bad value check
 			//error
 		}
 		//wait for server game results
 
 		wait = WaitForMessage(&GameResults, SERVER_WAIT_TIMEOUT * 2);
 
-		if (wait == 1) { //got TIMEOUT in receiving the message from server
-			return ERROR_TIMEOUT; //go back to main while loop, disconnect and show initial menu to user
+		if (wait == TIMEOUT_ERROR) { //got TIMEOUT in receiving the message from server
+			return TIMEOUT_ERROR; //go back to main while loop, disconnect and show initial menu to user
 		}
 		// parse results and print to screen  (check that SERVER_GAME_RESULTS was received)
 		//CheckServerResponse(GameResults);
 		printf("Game results: %s", GameResults);
 
-		wait = WaitForMessage(&GameOverMenu);
+		wait = WaitForMessage(&GameOverMenu, SERVER_WAIT_TIMEOUT);
 		//check that we got gameovermenu
 		printf("Gameover menu: %s", GameOverMenu);
-		if (wait == 1) { //got TIMEOUT in receiving the message from server
-			return ERROR_TIMEOUT; //go back to main while loop, disconnect and show initial menu to user
+		if (wait == TIMEOUT_ERROR) { //got TIMEOUT in receiving the message from server
+			return TIMEOUT_ERROR; //go back to main while loop, disconnect and show initial menu to user
 		}
 
 		//check that SERVER_GAME_OVER_MENU was received
 		user_decision = ShowPostGameMenu();
 		if (user_decision == 2) {
 			PrepareMessage(&ClientMainMenu, "CLIENT_MAIN_MENU", NULL, NULL, NULL, 0);
-			SendMessageToDest(ClientMainMenu);
+			SendMessageToDest(ClientMainMenu, &m_socket);
 			return 5;
 		}
 		//else - user chose 1. Play Again
 		PrepareMessage(&ClientReplay, "CLIENT_REPLAY", NULL, NULL, NULL, 0);
 		printf("replay: %s", ClientReplay);
-		SendMessageToDest(ClientReplay);
+		SendMessageToDest(ClientReplay, &m_socket);
 	}
-	return 6;
+
+	//return 6;
 }
 
-
-int WaitForOpponent() {
-
-}

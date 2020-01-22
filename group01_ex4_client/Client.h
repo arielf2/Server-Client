@@ -17,7 +17,7 @@
 #define SERVER_NO_OPPONENTS "SERVER_NO_OPPONENTS\n"
 
 #define SERVER_WAIT_TIMEOUT 15
-#define ERROR_TIMEOUT -1
+#define TIMEOUT_ERROR -1
 
 #include <stdio.h>
 #include <string.h>
@@ -27,13 +27,6 @@
 #include "SharedFuncs.h"
 #pragma comment(lib, "Ws2_32.lib")
 
-typedef struct {
-	char username[MAX_USERNAME_LENGTH];
-	char ip_address[MAX_IP_LENGTH];
-	char port[MAX_PORT_LENGTH];
-
-	SOCKADDR_IN *clientService;
-} client_thread_param;
 
 void MainClient(char* ip_address, char* port, char* username);
 
@@ -118,18 +111,6 @@ int CreateAndCheckSocket();
 	Returns:	 integer representing the message	*/
 int CheckServerResponse(char* response);
 
-
-
-/*	Description: Get the message type and parameters and create a valid message to send to server/client
-	Parameters: Dest - pointer to a char pointer, this will hold the final message to send
-				Dest is malloced - need to free after using
-				message - the message type
-				parameter_1/2/3 - given parameters, up to 3. Set unused parameters to NULL.
-				num_of_valid_params - number of valid parameters to send. Up to 3
-	Returns:	0 if function succeeded, 1 if failed */
-int PrepareMessage(char **Dest, char *message, char* parameter_1, char* parameter_2, char* parameter_3, int num_of_valid_params);
-
-
 /*	Description: Gets the total length of the valid parameters for a specific message
 	Parameters:	 parameter_1/2/3 - parameters for the message
 				 num_of_valid_params - number of valid params (up to 3)
@@ -137,13 +118,11 @@ int PrepareMessage(char **Dest, char *message, char* parameter_1, char* paramete
 int GetTotalLen(char* parameter_1, char* parameter_2, char* parameter_3, int num_of_valid_params);
 
 
-
-
-/*	Description: Sends the message in the specified format to the destination, through the global socket
+/*	Description: Sends the message in the specified format to the destination, through a global socket
 	Parameters: message - the message to send
 	Returns: 0 if successfull, !0 if failed
 */
-int SendMessageToDest(char *message);
+int SendMessageToDest(char *message, SOCKET *local_socket);
 
 
 

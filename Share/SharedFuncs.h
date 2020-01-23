@@ -16,3 +16,23 @@ int GetLen(char *str);
 	Returns:	 0 if the messages are identical */ 
 int CompareProtocolMessages(char *str_a, char *str_b);
 
+
+
+
+/* Functions that can be probably used by both the server and the client */
+
+/*	Description: Get the message type and parameters and create a valid message to send to server/client
+	Parameters: Dest - pointer to a char pointer, this will hold the final message to send
+				Dest is malloced - need to free after using
+				message - the message type
+				parameter_1/2/3 - given parameters, up to 3. Set unused parameters to NULL.
+				num_of_valid_params - number of valid parameters to send. Up to 3
+	Returns:	0 if function succeeded, 1 if failed
+	Usage example: 
+
+	char *PlayerMove = NULL;
+	PrepareMessage(&PlayerMove, "CLIENT_PLAYER_MOVE", "PAPER", NULL, NULL, 1);
+	*/
+
+
+int PrepareMessage(char **Dest, char *message, char* parameter_1, char* parameter_2, char* parameter_3, int num_of_valid_params);

@@ -101,3 +101,19 @@ int PrepareMessage(char **Dest, char *message, char* parameter_1, char* paramete
 //	free(message);
 //	return return_val;
 //}
+
+
+int GetTotalLen(char* parameter_1, char* parameter_2, char* parameter_3, int num_of_valid_params) {
+	int len = 0;
+
+	if (num_of_valid_params == 0)
+		return 0;
+	else if (num_of_valid_params == 1)
+		len = strlen(parameter_1);
+	else if (num_of_valid_params == 2)
+		len = strlen(parameter_1) + strlen(parameter_2);
+	else // 3 valid params
+		len = strlen(parameter_1) + strlen(parameter_2) + strlen(parameter_3);
+
+	return len;
+}

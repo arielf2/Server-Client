@@ -59,6 +59,8 @@ void MainClient(char* ip_address, char* port, char* username)
 
 		else { 	//connection successfull:
 			//send client request
+
+			printf("Connection successful\n");
 			if (SendClientRequest(username) != 0) {
 				printf("couldnt write client request to socket\n");
 				exit(1);
@@ -191,7 +193,7 @@ int SendClientRequest(char *username) {
 
 	strcat_s(ClientRequest, MAX_CLIENT_REQUEST_LEN + 1, username); //CLIENT_REQUEST:Ariel
 	ClientRequest[strlen(ClientRequest)] = '\n'; // Turn the string to the correct protocol message, that ends with '\n' instead of '\0'
-
+	printf("Send: %s", ClientRequest);
 	SendRes = SendString(ClientRequest, m_socket);
 
 	if (SendRes == TRNS_FAILED)
@@ -336,20 +338,6 @@ start:
 
 
 
-int GetTotalLen(char* parameter_1, char* parameter_2, char* parameter_3, int num_of_valid_params) {
-	int len = 0;
-	
-	if (num_of_valid_params == 0)
-		return 0;
-	else if (num_of_valid_params == 1)
-		len = strlen(parameter_1);
-	else if (num_of_valid_params == 2)
-		len = strlen(parameter_1) + strlen(parameter_2);
-	else // 3 valid params
-		len = strlen(parameter_1) + strlen(parameter_2) + strlen(parameter_3);
-
-	return len;
-}
 
 int SendMessageToDest(char *message, SOCKET *local_socket) {
 	int return_val = 0;

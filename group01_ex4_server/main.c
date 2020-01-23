@@ -20,12 +20,14 @@ int main(int argc, char *argv[]) {
 	int ListenRes;
 	HANDLE game_session_file_mutex = NULL;
 	HANDLE exit_thread = NULL;
-	exit_thread_param_struct* exit_thread_param;
-	thread_param_struct* threads_params[NUM_OF_WORKER_THREADS];
+	exit_thread_param_struct exit_thread_param;
+	thread_param_struct threads_params[NUM_OF_WORKER_THREADS];
 	int thread_id;
 	// Initialize Winsock.
 	WSADATA wsaData;
 	int StartupRes = WSAStartup(MAKEWORD(2, 2), &wsaData);
+	printf("try to show console'");
+
 
 	if (StartupRes != NO_ERROR)
 	{
@@ -67,7 +69,7 @@ int main(int argc, char *argv[]) {
 
 	service.sin_family = AF_INET;
 	service.sin_addr.s_addr = Address;
-	service.sin_port = htons(*argv[1]); //The htons function converts a u_short from host to TCP/IP network byte order 
+	service.sin_port = htons(atoi(argv[1])); //The htons function converts a u_short from host to TCP/IP network byte order 
 									   //( which is big-endian ).
 	/*
 		The three lines following the declaration of sockaddr_in service are used to set up
@@ -113,8 +115,8 @@ int main(int argc, char *argv[]) {
 	for (Ind = 0; Ind < NUM_OF_WORKER_THREADS; Ind++)
 		ThreadHandles[Ind] = NULL;
 
-	exit_thread_param->MainSocket = &MainSocket;
-	exit_thread = CreateThreadSimple(exit_thread, exit_thread_param, &thread_id);
+	//exit_thread_param.MainSocket = &MainSocket;
+	//exit_thread = CreateThreadSimple(exit_thread, &exit_thread_param, &thread_id);
 
 	printf("Waiting for a client to connect...\n");
 
@@ -142,13 +144,13 @@ int main(int argc, char *argv[]) {
 											  // AcceptSocket, instead close 
 											  // ThreadInputs[Ind] when the
 											  // time comes.
-			threads_params[Ind]->MySocket = &(ThreadInputs[Ind]);
-			threads_params[Ind]->MySocket - Ind;
+			threads_params[Ind].MySocket = &(ThreadInputs[Ind]);
+			threads_params[Ind].MySocket - Ind;
 			ThreadHandles[Ind] = CreateThread(
 				NULL,
 				0,
 				(LPTHREAD_START_ROUTINE)ServiceThread,
-				threads_params[Ind],
+				&threads_params[Ind],
 				0,
 				NULL
 			);
@@ -276,13 +278,13 @@ static DWORD ServiceThread(LPVOID lpParam)
 			printf("Error in wait.\n");
 
 		}
-
+		printf("after wait received %s\n", AcceptedStr);
 		parse_command(AcceptedStr, message_type, parameters);
-
+		printf("now msg type is: %s", message_type);
 		if (STRINGS_ARE_EQUAL(message_type, "CLIENT_REQUEST")) {
 
 			user_name = parameters[0];
-			strcpy(SendStr, "SERVER_APPROVED");
+			strcpy(SendStr, "SERVER_APPROVED\n");
 			SendRes = SendString(SendStr, *t_socket);
 
 			if (SendRes == TRNS_FAILED)
@@ -393,7 +395,7 @@ static DWORD ServiceThread(LPVOID lpParam)
 		}
 		else if (STRINGS_ARE_EQUAL(message_type, "CLIENT_PLAYER_MOVE")) {
 			if (status = CPU) {
-				replace_string_with_enum(step, parameters[0]);
+				replace_string_with_enum(&step, parameters[0]);
 				int winner = -1;
 				winner = find_who_wins(cpu_step, step);
 				replace_enum_with_string(cpu_step, step_c);
@@ -420,7 +422,7 @@ static DWORD ServiceThread(LPVOID lpParam)
 					step = 0;
 					int win = -1;
 					write_move_to_file(parameters[0]);
-					while (check_if_file_has_2_lines(line_versus) != 2) {
+					while (check_how_many_lines(line_versus) != 2) {
 						Sleep(1);
 
 					}
@@ -454,7 +456,7 @@ static DWORD ServiceThread(LPVOID lpParam)
 					fp_game_session = fopen("GameSession.txt", "w");//create file
 					int win = -1;
 					while (check_how_many_lines(line_versus) != 1) {
-						sleep(1);
+						Sleep(1);
 					}
 					other_step_c = strtok(line_versus, game_session_delim);
 					other_user_name = strtok(NULL, game_session_delim);
@@ -629,7 +631,6 @@ int check_how_many_lines(char *line) {
 	FILE* fp;
 	int l_wait_code = -1;
 	int l_ret_val = -1;
-	char *line = NULL;
 	int counter = 0; 
 	HANDLE l_mutex_handle = NULL;
 	l_mutex_handle = OpenMutex(SYNCHRONIZE, TRUE, "game_session_file_mutex");
@@ -752,6 +753,7 @@ int parse_command(char *command, char* message_type, char* parameters) {
 	while (command[i] != '\n') {
 		if (command[i] == ';')
 			counter++;
+		i++;
 	}
 	counter++;
 	parameters = (char*)malloc(counter * sizeof(char*));
@@ -932,7 +934,7 @@ void exit_function(exit_thread_param_struct *thread_param) {
 	extern SOCKET ThreadInputs[NUM_OF_WORKER_THREADS];
 	int socket_return_val = -1;
 	int return_val = -1;
-	char* input;
+	char input[5];
 	while (1) {
 		scanf(input);
 		if (strcmp(input, "exit") == 0) {
@@ -953,7 +955,7 @@ void exit_function(exit_thread_param_struct *thread_param) {
 int wait_for_another_player(int index, BOOL val) {
 	int i = 0;
 	for (i = 0; i < 3; i++) {
-		sleep(10);
+		Sleep(10);
 		if (ThreadIndex[index] == val)
 			return 1;
 	}

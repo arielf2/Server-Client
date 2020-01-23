@@ -25,7 +25,9 @@
 #include <stdio.h>
 #include <string.h>
 #include <winsock2.h>
+#include <Windows.h>
 #include "SendRecv.h"
+
 
 #define SERVER_ADDRESS_STR "127.0.0.1"
 #define SERVER_PORT 2345
@@ -69,11 +71,13 @@ int send_leader_board(SOCKET *t_socket);
 void replace_comma_with_tab(char* line, char* newline);
 void replace_enum_with_string(step step, char* string);
 int find_who_wins(step first_step, step second_step);
+void replace_string_with_enum(step *step, char* string);
 int rand_step();
 HANDLE CreateThreadSimple(LPTHREAD_START_ROUTINE p_start_routine, LPVOID p_thread_parameters, LPDWORD p_thread_id);
 int check_if_file_exists();
 void exit_function(exit_thread_param_struct *thread_param);
-
+int wait_for_another_player(int index, BOOL val);
+int WaitForMessage(char **AcceptedString, int wait_period, SOCKET m_socket);
 /*oOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoO*/
 
 

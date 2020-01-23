@@ -226,6 +226,7 @@ static DWORD ServiceThread(SOCKET *t_socket)
 {
 	char SendStr[SEND_STR_SIZE];
 	int find_other_player = -1;
+	int player_number = -1;
 	BOOL Done = FALSE;
 	TransferResult_t SendRes;
 	TransferResult_t RecvRes;
@@ -317,6 +318,7 @@ static DWORD ServiceThread(SOCKET *t_socket)
 		else if (STRINGS_ARE_EQUAL(message_type, "CLIENT_VERSUS")) {
 			if (check_if_file_exists()) {
 				status = VERSUS;//change only here?
+				player_number = 2;//second player
 				strcpy(SendStr, "SERVER_INVITE");
 				SendRes = SendString(SendStr, *t_socket);
 
@@ -337,6 +339,11 @@ static DWORD ServiceThread(SOCKET *t_socket)
 					return 1;
 				}
 
+			}
+			else {
+				//create file
+				//wait for another client for 30 second - wait to see that someone wrote to file
+				//if no one write, delete file and server send no OPPONENTS_NO_SERVER
 			}
 
 		}
@@ -371,18 +378,39 @@ static DWORD ServiceThread(SOCKET *t_socket)
 			}
 			else if (status = VERSUS) {
 				/*send results when playing against other player */
-				step = 0;
-				int win = -1;
-				char *line_versus = NULL;
-				write_move_to_file(parameters[0]);
-				while (check_if_file_has_2_lines(line_versus) != 2) {
-					Sleep(1);
+				if (player_number == 2) {
+					step = 0;
+					int win = -1;
+					char *line_versus = NULL;
+					write_move_to_file(parameters[0]);
+					while (check_if_file_has_2_lines(line_versus) != 2) {
+						Sleep(1);
+
+					}
+					replace_string_with_enum(&step, parameters[0]);
+					replace_string_with_enum(&others_step, line_versus);
+					win = find_who_wins(others_step, step); 
+
+					strcpy(SendStr, "SERVER_GAME_RESULTS");
+					SendRes = SendString(SendStr, *t_socket);
+
+					if (SendRes == TRNS_FAILED)
+					{
+						printf("Service socket error while writing, closing thread.\n");
+						closesocket(*t_socket);
+						return 1;
+					}
+
+					//WRITE DONE?
+				}
+				else if (player_number == 1)
+				{
+				
+				}
+				else {
+					printf("Error in versus.\n");
 
 				}
-				replace_string_with_enum(&step, parameters[0]);
-				replace_string_with_enum(&others_step, line_versus);//change to another step
-				win = find_who_wins(others_step, step); //change to another step
-				/////////////////////continue
 			}
 
 			SendRes = SendString(SendStr, *t_socket);
@@ -784,8 +812,11 @@ void exit_function(thread_param_struct *thread_param) {
 			/*close handles and sockets*/
 			for (int i = 0; i < NUM_OF_WORKER_THREADS; i++) {
 				closesocket(ThreadInputs[i]);
-				if (socket_return_val == 0)					printf("Error when exiting\n");
-				CloseHandle(ThreadHandles[i]);				if (return_val == 0)					printf("Error when exiting\n");
+				if (socket_return_val == 0)
+					printf("Error when exiting\n");
+				CloseHandle(ThreadHandles[i]);
+				if (return_val == 0)
+					printf("Error when exiting\n");
 			}
 			closesocket(*thread_param->MainSocket);
 			return 0;

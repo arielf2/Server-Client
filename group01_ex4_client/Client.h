@@ -115,7 +115,7 @@ int CheckServerResponse(char* response);
 	Parameters:	 parameter_1/2/3 - parameters for the message
 				 num_of_valid_params - number of valid params (up to 3)
 	Returns		 int - total length (in bytes) of the valid parameters	*/
-int GetTotalLen(char* parameter_1, char* parameter_2, char* parameter_3, int num_of_valid_params);
+//int GetTotalLen(char* parameter_1, char* parameter_2, char* parameter_3, int num_of_valid_params);
 
 
 /*	Description: Sends the message in the specified format to the destination, through a global socket

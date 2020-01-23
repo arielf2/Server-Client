@@ -11,12 +11,12 @@ void MainClient(char* ip_address, char* port, char* username)
 
 	//check parse command:
 
-	//char *MyMsg = NULL;
-	//PrepareMessage(&MyMsg, "CLIENT_REQUEST", "Ariel", "Rotem", NULL, 2);
-	//char *parameters = NULL;
-	//char *Accepted_Str = NULL;
-	//char message_type[15] = "";
-	//parse_command(MyMsg, message_type, parameters);
+	char *MyMsg = NULL;
+	PrepareMessage(&MyMsg, "CLIENT_REQUEST", "Ariel", "Rotem", "Shachar", 3);
+	char *parameters = NULL;
+	char *Accepted_Str = NULL;
+	char message_type[15] = "";
+	parse_command(MyMsg, message_type, parameters);
 
 	int user_exit = 0;
 	// Initialize Winsock.
@@ -142,7 +142,7 @@ start:
 	}
 }
 
-int WaitForMessage(char **AcceptedString, int wait_period) {
+int WaitForMessage(char **AcceptedString, int wait_period){//, SOCKET *local_socket) {
 	int error = 0;
 
 	fd_set set;
@@ -335,21 +335,21 @@ start:
 
 
 
-
-int GetTotalLen(char* parameter_1, char* parameter_2, char* parameter_3, int num_of_valid_params) {
-	int len = 0;
-	
-	if (num_of_valid_params == 0)
-		return 0;
-	else if (num_of_valid_params == 1)
-		len = strlen(parameter_1);
-	else if (num_of_valid_params == 2)
-		len = strlen(parameter_1) + strlen(parameter_2);
-	else // 3 valid params
-		len = strlen(parameter_1) + strlen(parameter_2) + strlen(parameter_3);
-
-	return len;
-}
+//this is in comment because i put this function in shared
+//int GetTotalLen(char* parameter_1, char* parameter_2, char* parameter_3, int num_of_valid_params) {
+//	int len = 0;
+//	
+//	if (num_of_valid_params == 0)
+//		return 0;
+//	else if (num_of_valid_params == 1)
+//		len = strlen(parameter_1);
+//	else if (num_of_valid_params == 2)
+//		len = strlen(parameter_1) + strlen(parameter_2);
+//	else // 3 valid params
+//		len = strlen(parameter_1) + strlen(parameter_2) + strlen(parameter_3);
+//
+//	return len;
+//}
 
 int SendMessageToDest(char *message, SOCKET *local_socket) {
 	int return_val = 0;

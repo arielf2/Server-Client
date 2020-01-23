@@ -20,7 +20,8 @@ int main(int argc, char *argv[]) {
 	int ListenRes;
 	HANDLE game_session_file_mutex = NULL;
 	HANDLE exit_thread = NULL;
-	thread_param_struct* thread_param;
+	//thread_param_struct* thread_param; arielf
+	thread_param_struct thread_param;
 	int thread_id;
 	// Initialize Winsock.
 	WSADATA wsaData;
@@ -66,7 +67,7 @@ int main(int argc, char *argv[]) {
 
 	service.sin_family = AF_INET;
 	service.sin_addr.s_addr = Address;
-	service.sin_port = htons(*argv[1]); //The htons function converts a u_short from host to TCP/IP network byte order 
+	service.sin_port = htons(atoi(argv[1])); //The htons function converts a u_short from host to TCP/IP network byte order 
 									   //( which is big-endian ).
 	/*
 		The three lines following the declaration of sockaddr_in service are used to set up
@@ -111,8 +112,8 @@ int main(int argc, char *argv[]) {
 	for (Ind = 0; Ind < NUM_OF_WORKER_THREADS; Ind++)
 		ThreadHandles[Ind] = NULL;
 
-	thread_param->MainSocket = &MainSocket;
-	exit_thread = CreateThreadSimple(exit_thread, thread_param, &thread_id);
+	thread_param.MainSocket = &MainSocket;
+	//exit_thread = CreateThreadSimple(exit_thread, &thread_param, &thread_id); arielf
 
 	printf("Waiting for a client to connect...\n");
 
@@ -501,7 +502,7 @@ int check_if_file_has_2_lines(char *line) {
 	FILE* fp;
 	int l_wait_code = -1;
 	int l_ret_val = -1;
-	char *line = NULL;
+	//char *line = NULL;  ARIEL - caused error
 	int counter = 0; 
 	HANDLE l_mutex_handle = NULL;
 	l_mutex_handle = OpenMutex(SYNCHRONIZE, TRUE, "game_session_file_mutex");
@@ -805,7 +806,8 @@ void exit_function(thread_param_struct *thread_param) {
 	extern SOCKET ThreadInputs[NUM_OF_WORKER_THREADS];
 	int socket_return_val = -1;
 	int return_val = -1;
-	char* input;
+	//char* input;
+	char input[50];
 	while (1) {
 		scanf(input);
 		if (strcmp(input, "exit") == 0) {

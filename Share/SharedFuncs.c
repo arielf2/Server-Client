@@ -1,6 +1,5 @@
 // This module defines useful functions for the communication protocol
 #include "SharedFuncs.h"
-
 int GetLen(char *str) {
 	
 	int i = 0;
@@ -88,6 +87,21 @@ int PrepareMessage(char **Dest, char *message, char* parameter_1, char* paramete
 }
 
 
+int GetTotalLen(char* parameter_1, char* parameter_2, char* parameter_3, int num_of_valid_params) {
+	int len = 0;
+
+	if (num_of_valid_params == 0)
+		return 0;
+	else if (num_of_valid_params == 1)
+		len = strlen(parameter_1);
+	else if (num_of_valid_params == 2)
+		len = strlen(parameter_1) + strlen(parameter_2);
+	else // 3 valid params
+		len = strlen(parameter_1) + strlen(parameter_2) + strlen(parameter_3);
+
+	return len;
+}
+
 //int SendMessageToDest(char *message, SOCKET *local_socket) {
 //	int return_val = 0;
 //	TransferResult_t SendRes;
@@ -101,3 +115,83 @@ int PrepareMessage(char **Dest, char *message, char* parameter_1, char* paramete
 //	free(message);
 //	return return_val;
 //}
+
+
+
+int parse_command(char *command, char* message_type, char* parameters) {
+	char s[2] = ":";
+	char delim[2] = ";";
+	int counter = 0;
+	int i = 0;
+	int j = 0;
+	char* parameters_string;
+
+	/*count how many parameters*/
+	while (command[i] != '\n') {
+		if (command[i] == ';')
+			counter++;
+		i++;
+	}
+	counter++;
+
+	parameters = (char*)malloc(counter * sizeof(char*));
+	
+	message_type = strtok(command, s);
+
+	parameters_string = strtok(NULL, s);
+
+	parameters = strtok(parameters_string, delim);
+	
+	for (j = 1; j < counter; j++) {
+		parameters = strtok(NULL, delim);
+	}
+	return counter;
+
+
+}
+
+
+//int WaitForMessage(char **AcceptedString, int wait_period, SOCKET *local_socket) {
+//	int error = 0;
+//
+//	fd_set set;
+//	struct timeval time;
+//	time.tv_sec = wait_period;
+//	time.tv_usec = 0;
+//
+//	FD_ZERO(&set);
+//	FD_SET(local_socket, &set);
+//
+//	//char *AcceptedStr = NULL;
+//	TransferResult_t RecvRes;
+//
+//	error = select(0, &set, NULL, NULL, &time);
+//
+//	if (error == 0) {
+//		printf("TIMEOUT: %d seconds passed and no response from server, in WaitForMessage, ReceiveData client\n", wait_period);
+//		return TIMEOUT_ERROR;
+//	}
+//	RecvRes = ReceiveString(AcceptedString, m_socket);
+//
+//	if (RecvRes == TRNS_FAILED)
+//	{
+//		printf("Socket error while trying to write data to socket\n");
+//		return 0x555;
+//	}
+//	else if (RecvRes == TRNS_DISCONNECTED)
+//	{
+//		printf("Server closed connection. Bye!\n");
+//		return 0x555;
+//	}
+//	else
+//	{
+//		//printf("accepted string is: %s\n", *AcceptedString);
+//		//return error;
+//	}
+//
+//	//free(AcceptedStr);
+//	//return error;
+//
+//}
+
+

@@ -36,9 +36,3 @@ int CompareProtocolMessages(char *str_a, char *str_b);
 
 
 int PrepareMessage(char **Dest, char *message, char* parameter_1, char* parameter_2, char* parameter_3, int num_of_valid_params);
-
-
-int GetTotalLen(char* parameter_1, char* parameter_2, char* parameter_3, int num_of_valid_params);
-
-
-int parse_command(char *command, char* message_type, char* parameters);

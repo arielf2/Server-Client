@@ -61,7 +61,6 @@ void write_move_to_file(char *move);
 int send_leader_board(SOCKET *t_socket);
 void replace_comma_with_tab(char* line, char* newline);
 void replace_enum_with_string(step step, char* string);
-void replace_string_with_enum(step *step, char* string);
 int find_who_wins(step first_step, step second_step);
 int rand_step();
 HANDLE CreateThreadSimple(LPTHREAD_START_ROUTINE p_start_routine, LPVOID p_thread_parameters, LPDWORD p_thread_id);

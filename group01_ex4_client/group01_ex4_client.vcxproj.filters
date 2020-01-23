@@ -19,6 +19,9 @@
     <Filter Include="Shared Source Files">
       <UniqueIdentifier>{fa33015f-9252-4305-a1ac-9f95bfe524c7}</UniqueIdentifier>
     </Filter>
+    <Filter Include="NewFilter1">
+      <UniqueIdentifier>{49de8e21-bdb9-48df-b52c-ef24df67b836}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="main.c">

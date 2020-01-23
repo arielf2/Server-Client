@@ -26,7 +26,6 @@ int main(int argc, char *argv[]) {
 	// Initialize Winsock.
 	WSADATA wsaData;
 	int StartupRes = WSAStartup(MAKEWORD(2, 2), &wsaData);
-	printf("try to show console'");
 
 
 	if (StartupRes != NO_ERROR)
@@ -243,8 +242,9 @@ static DWORD ServiceThread(LPVOID lpParam)
 	TransferResult_t RecvRes;
 	step others_step = 0;
 	step cpu_step = 0;
-	char message_type[15] = "";
-	char* parameters = NULL;
+	//char message_type[15] = "";
+	char* message_type;
+	char* parameters[4];
 	char* user_name = NULL;
 	step step = 0;
 	char step_c[9] = "";
@@ -274,13 +274,42 @@ static DWORD ServiceThread(LPVOID lpParam)
 	while (!Done)
 	{
 		char *AcceptedStr = NULL;
-		if (WaitForMessage(&AcceptedStr,15, *t_socket) == -1) {
+		if (WaitForMessage(&AcceptedStr,150, *t_socket) == -1) {////
 			printf("Error in wait.\n");
 
 		}
-		printf("after wait received %s\n", AcceptedStr);
-		parse_command(AcceptedStr, message_type, parameters);
-		printf("now msg type is: %s", message_type);
+		//parse_command(AcceptedStr, &message_type, parameters);
+		char s[2] = ":";
+		char delim[2] = ";";
+		int counter = 0;
+		int i = 0;
+		int j = 0;
+		char* parameters_string;
+		char l_string[250] = "";
+		/*count how many parameters*/
+		while (AcceptedStr[i] != '\n') {
+			l_string[i] = AcceptedStr[i];
+			if (AcceptedStr[i] == ';')
+				counter++;
+			i++;
+		}
+		l_string[i] = '\0';
+		//test
+		counter++;
+		//*parameters = (char*)malloc(counter * sizeof(char*));
+
+
+		message_type = strtok(l_string, s);
+		parameters_string = strtok(NULL, s);
+		if (counter > 1) {
+			parameters[j] = strtok(parameters_string, delim);
+			for (j = 1; j < counter; j++) {
+				parameters[j] = strtok(NULL, delim);
+			}
+		}
+		else {
+			strcpy(*parameters, parameters_string);
+		}
 		if (STRINGS_ARE_EQUAL(message_type, "CLIENT_REQUEST")) {
 
 			user_name = parameters[0];
@@ -581,7 +610,7 @@ static DWORD ServiceThread(LPVOID lpParam)
 		}
 		else if (STRINGS_ARE_EQUAL(message_type, "CLIENT_DISCONNECT"))
 		{
-			return 0;
+			Done = 1;
 		}
 		else
 		{
@@ -742,30 +771,39 @@ int send_leader_board(SOCKET *t_socket) {
 	}
 	return SendRes;
 }
-int parse_command(char *command, char* message_type, char* parameters) {
+int parse_command(char *command, char message_type[], char** parameters) {
 	char s[2] = ":";
 	char delim[2] = ";";
 	int counter = 0;
 	int i = 0;
 	int j = 0;
 	char* parameters_string;
+	char l_string[250] = "";
 	/*count how many parameters*/
 	while (command[i] != '\n') {
+		l_string[i] = command[i];
 		if (command[i] == ';')
 			counter++;
 		i++;
 	}
+	l_string[i] = '\0';
 	//test
 	counter++;
-	parameters = (char*)malloc(counter * sizeof(char*));
+	//*parameters = (char*)malloc(counter * sizeof(char*));
 	
-
-	message_type = strtok(command, s);
+	
+	message_type = strtok(l_string, s);
 	parameters_string = strtok(NULL, s);
-	parameters[j] = strtok(parameters_string, delim);
-	for (j = 1; j < counter - 1; j++) {
-		parameters[j] = strtok(NULL, delim);
+	if (counter > 1) {
+		parameters[j] = strtok(parameters_string, delim);
+		for (j = 1; j < counter; j++) {
+			parameters[j] = strtok(NULL, delim);
+		}
 	}
+	else {
+		strcpy(*parameters, parameters_string);
+	}
+	
 	return counter;
 	
 

@@ -59,7 +59,6 @@ void MainClient(char* ip_address, char* port, char* username)
 
 		else { 	//connection successfull:
 			//send client request
-
 			printf("Connection successful\n");
 			if (SendClientRequest(username) != 0) {
 				printf("couldnt write client request to socket\n");
@@ -193,7 +192,6 @@ int SendClientRequest(char *username) {
 
 	strcat_s(ClientRequest, MAX_CLIENT_REQUEST_LEN + 1, username); //CLIENT_REQUEST:Ariel
 	ClientRequest[strlen(ClientRequest)] = '\n'; // Turn the string to the correct protocol message, that ends with '\n' instead of '\0'
-	printf("Send: %s", ClientRequest);
 	SendRes = SendString(ClientRequest, m_socket);
 
 	if (SendRes == TRNS_FAILED)

@@ -755,6 +755,7 @@ int parse_command(char *command, char* message_type, char* parameters) {
 			counter++;
 		i++;
 	}
+	//test
 	counter++;
 	parameters = (char*)malloc(counter * sizeof(char*));
 	

@@ -44,10 +44,17 @@ typedef enum { TRNS_FAILED, TRNS_DISCONNECTED, TRNS_SUCCEEDED } TransferResult_t
 typedef enum { ROCK, PAPER, SCISSORS, LIZARD, SPOCK } step;
 typedef enum { CPU, VERSUS } status;
 
-typedef struct _thread_param_struct
+typedef struct _exit_thread_param_struct
 {
 	SOCKET *MainSocket;
 
+
+} exit_thread_param_struct;
+
+typedef struct _thread_param_struct
+{
+	SOCKET *MySocket;
+	int my_index;
 
 } thread_param_struct;
 /*oOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoO*/
@@ -65,7 +72,7 @@ int find_who_wins(step first_step, step second_step);
 int rand_step();
 HANDLE CreateThreadSimple(LPTHREAD_START_ROUTINE p_start_routine, LPVOID p_thread_parameters, LPDWORD p_thread_id);
 int check_if_file_exists();
-void exit_function(thread_param_struct *thread_param);
+void exit_function(exit_thread_param_struct *thread_param);
 
 /*oOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoO*/
 

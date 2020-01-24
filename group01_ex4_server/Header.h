@@ -33,6 +33,7 @@
 #define SEND_STR_SIZE 350
 #define STRINGS_ARE_EQUAL( Str1, Str2 ) ( strcmp( (Str1), (Str2) ) == 0 )
 
+#include "SharedFuncs.h"
 #include <stdio.h>
 #include <string.h>
 #include <winsock2.h>
@@ -61,13 +62,13 @@ typedef struct _thread_param_struct
 	int my_index;
 
 } thread_param_struct;
-typedef struct _parameters_struct {
-	char *message_type;
-	char *param1;
-	char *param2;
-	char *param3;
-	char *param4;
-}parameters_struct;
+//typedef struct _parameters_struct {
+//	char *message_type;
+//	char *param1;
+//	char *param2;
+//	char *param3;
+//	char *param4;
+//}parameters_struct;
 /*oOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoO*/
 
 static int FindFirstUnusedThreadSlot();
@@ -75,7 +76,7 @@ static void CleanupWorkerThreads();
 static DWORD ServiceThread(SOCKET *t_socket);
 int write_in_leader_board(char user_name[], int win);
 int parse_command(char *command,  parameters_struct* parameters_s);
-	void write_move_to_file(char *move);
+void write_move_to_file(char *move);
 int send_leader_board(SOCKET *t_socket);
 void replace_comma_with_tab(char* line, char* newline);
 void replace_enum_with_string(step step, char* string);

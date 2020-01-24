@@ -3,7 +3,13 @@
 #include <stdlib.h>	
 
 #define MAX_MESSAGE_LEN 40
-
+typedef struct _parameters_struct {
+	char *message_type;
+	char *param1;
+	char *param2;
+	char *param3;
+	char *param4;
+}parameters_struct;
 
 /*	Description: Gets the number of characters in the message (without the '\n'), where the message is in the specified protocol (ends with '\n')
 	Parameters:  char *str: pointer to array of characters
@@ -39,3 +45,7 @@ int PrepareMessage(char **Dest, char *message, char* parameter_1, char* paramete
 
 
 int GetTotalLen(char* parameter_1, char* parameter_2, char* parameter_3, int num_of_valid_params);
+
+
+
+//int parse_command(char *command, parameters_struct* parameters_s);

@@ -358,6 +358,7 @@ int ClientVersusServer() {
 	while (1) { // Game Loop
 	char *MoveRequest = NULL, *GameResults = NULL, *GameOverMenu = NULL;
 	char *PlayerMove = NULL, *ClientMainMenu = NULL, *ClientReplay = NULL;
+	parameters_struct param_struct;
 
 	// Wait and check for SERVER_PLAYER_MOVE_REQUEST message from server
 
@@ -367,7 +368,7 @@ int ClientVersusServer() {
 		}
 
 		server_response = CheckServerResponse(MoveRequest);
-		printf("Move request: %s", MoveRequest);
+		//printf("Move request: %s", MoveRequest);
 		if (server_response != 3) {
 			printf("Debug Print:\nServer Didn't send SERVER_PLAYER_MOVE_REQUEST\n");
 			//error?
@@ -377,7 +378,7 @@ int ClientVersusServer() {
 
 		GetUserMove(user_move);
 		PrepareMessage(&PlayerMove, "CLIENT_PLAYER_MOVE", user_move, NULL, NULL, 1);
-		printf("Player Move: %s", PlayerMove);
+		printf("Player Move: %s", user_move);
 		if (SendMessageToDest(PlayerMove, &m_socket) == 0) { //bad value check
 			//error
 		}
@@ -390,6 +391,8 @@ int ClientVersusServer() {
 			return TIMEOUT_ERROR; //go back to main while loop, disconnect and show initial menu to user
 
 		// parse results and print to screen  (check that SERVER_GAME_RESULTS was received)
+		parse_command(GameResults, &param_struct);
+		printf("You played: %s\n%s played: %s\n%s won!", PlayerMove, param_struct.param1, param_struct.param2, param_struct.param4);
 		//CheckServerResponse(GameResults);
 		printf("Game results: %s", GameResults);
 
@@ -569,3 +572,69 @@ int ClientVersusClient() {
 	//return 6;
 }
 
+int parse_command(char *command, parameters_struct* parameters_s) {
+	char s[2] = ":";
+	char delim[2] = ";";
+	int counter = 0;
+	int counter_p = 0;
+	int i = 0;
+	int j = 0;
+	char* parameters_string;
+	char l_string[250] = "";
+	/*count how many parameters*/
+	while (command[i] != '\n') {
+		l_string[i] = command[i];
+		if (command[i] == ';')
+			counter++;
+		if (command[i] == ':')
+			counter_p++;
+		i++;
+	}
+	l_string[i] = '\0';
+	//test
+	counter++;
+	//*parameters = (char*)malloc(counter * sizeof(char
+	parameters_s->message_type = NULL;
+	parameters_s->param1 = NULL;
+	parameters_s->param2 = NULL;
+	parameters_s->param3 = NULL;
+	parameters_s->param4 = NULL;
+
+	parameters_s->message_type = strtok(l_string, s);
+	if (counter == 1 & counter_p == 1)
+		parameters_s->param1 = strtok(NULL, s);
+	else {
+		parameters_string = strtok(NULL, s);
+		if (counter > 1) {
+			char* param_one = (char*)malloc(40 * sizeof(char*));
+			strcpy(param_one, strtok(parameters_string, delim));
+			//parameters[j] = strtok(parameters_string, delim);
+			//parameters_s->param1 = strtok(parameters_string, delim); //rotem
+			parameters_s->param1 = param_one;
+			if (counter >= 2) {
+
+				char* param_two = (char*)malloc(40 * sizeof(char*));
+				strcpy(param_two, strtok(NULL, delim));
+				parameters_s->param2 = param_two;
+				//parameters_s->param2 = strtok(NULL, delim); //rotem
+			}
+			if (counter >= 3)
+			{
+				char* param_three = (char*)malloc(40 * sizeof(char*));
+				strcpy(param_three, strtok(NULL, delim));
+				parameters_s->param3 = param_three;
+				// parameters_s->param3 = strtok(NULL, delim);// rotem
+			}
+			if (counter == 4) {
+				char* param_four = (char*)malloc(40 * sizeof(char*));
+				strcpy(param_four, strtok(NULL, delim));
+				parameters_s->param4 = param_four;
+				//parameters_s->param4 = strtok(NULL, delim); //rotem
+			}
+		}
+	}
+
+
+	return counter;
+
+}

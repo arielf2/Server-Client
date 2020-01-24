@@ -2,7 +2,7 @@
 #ifndef WIN32_LEAN_AND_MEAN
 #define WIN32_LEAN_AND_MEAN
 #endif
-
+#define _CRT_SECURE_NO_WARNINGS
 #define _WINSOCK_DEPRECATED_NO_WARNINGS
 #define MAX_CLIENT_REQUEST_LEN 36 //CLIENT_REQUEST:20\n 36
 #define MAX_USERNAME_LENGTH 21
@@ -126,3 +126,4 @@ int SendMessageToDest(char *message, SOCKET *local_socket);
 
 
 
+int parse_command(char *command, parameters_struct* parameters_s);

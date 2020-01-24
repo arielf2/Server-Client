@@ -242,8 +242,8 @@ static DWORD ServiceThread(LPVOID lpParam)
 	TransferResult_t RecvRes;
 	step others_step = 0;
 	step cpu_step = 0;
-	//char message_type[15] = "";
-	char* message_type;
+	char message_type[15];
+	//char* message_type = NULL;
 	char* parameters[4];
 	char* user_name = NULL;
 	step step = 0;
@@ -251,7 +251,7 @@ static DWORD ServiceThread(LPVOID lpParam)
 	status status = -1;
 	FILE *fp_game_session = NULL;
 	char game_session_delim = ';';
-	strcpy(SendStr, "SERVER_APPROVED");
+	parameters_struct parameters_s;
 
 	/*oOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoO*/
 
@@ -278,41 +278,12 @@ static DWORD ServiceThread(LPVOID lpParam)
 			printf("Error in wait.\n");
 
 		}
-		//parse_command(AcceptedStr, &message_type, parameters);
-		char s[2] = ":";
-		char delim[2] = ";";
-		int counter = 0;
-		int i = 0;
-		int j = 0;
-		char* parameters_string;
-		char l_string[250] = "";
-		/*count how many parameters*/
-		while (AcceptedStr[i] != '\n') {
-			l_string[i] = AcceptedStr[i];
-			if (AcceptedStr[i] == ';')
-				counter++;
-			i++;
-		}
-		l_string[i] = '\0';
-		//test
-		counter++;
-		//*parameters = (char*)malloc(counter * sizeof(char*));
+		parse_command(AcceptedStr, &parameters_s);
+		
+		
+		if (STRINGS_ARE_EQUAL(parameters_s.message_type, "CLIENT_REQUEST")) {
 
-
-		message_type = strtok(l_string, s);
-		parameters_string = strtok(NULL, s);
-		if (counter > 1) {
-			parameters[j] = strtok(parameters_string, delim);
-			for (j = 1; j < counter; j++) {
-				parameters[j] = strtok(NULL, delim);
-			}
-		}
-		else {
-			strcpy(*parameters, parameters_string);
-		}
-		if (STRINGS_ARE_EQUAL(message_type, "CLIENT_REQUEST")) {
-
-			user_name = parameters[0];
+			user_name = parameters_s.param1;
 			strcpy(SendStr, "SERVER_APPROVED\n");
 			SendRes = SendString(SendStr, *t_socket);
 
@@ -322,10 +293,7 @@ static DWORD ServiceThread(LPVOID lpParam)
 				closesocket(*t_socket);
 				return 1;
 			}
-		}
-		else if (STRINGS_ARE_EQUAL(message_type, "CLIENT_MAIN_MENU"))
-		{
-			strcpy(SendStr, "SERVER_MAIN_MENU");
+			strcpy(SendStr, "SERVER_MAIN_MENU\n");
 
 			SendRes = SendString(SendStr, *t_socket);
 
@@ -336,10 +304,23 @@ static DWORD ServiceThread(LPVOID lpParam)
 				return 1;
 			}
 		}
-		else if (STRINGS_ARE_EQUAL(message_type, "CLIENT_CPU")) {
+		else if (STRINGS_ARE_EQUAL(parameters_s.message_type, "CLIENT_MAIN_MENU"))
+		{
+			strcpy(SendStr, "SERVER_MAIN_MENU\n");
+
+			SendRes = SendString(SendStr, *t_socket);
+
+			if (SendRes == TRNS_FAILED)
+			{
+				printf("Service socket error while writing, closing thread.\n");
+				closesocket(*t_socket);
+				return 1;
+			}
+		}
+		else if (STRINGS_ARE_EQUAL(parameters_s.message_type, "CLIENT_CPU")) {
 			status = CPU;
 			cpu_step = rand_step();
-			strcpy(SendStr, "SERVER_PLAYER_MOVE_REQUEST");
+			strcpy(SendStr, "SERVER_PLAYER_MOVE_REQUEST\n");
 			SendRes = SendString(SendStr, *t_socket);
 
 			if (SendRes == TRNS_FAILED)
@@ -350,11 +331,11 @@ static DWORD ServiceThread(LPVOID lpParam)
 			}
 			
 		}
-		else if (STRINGS_ARE_EQUAL(message_type, "CLIENT_VERSUS")) {
+		else if (STRINGS_ARE_EQUAL(parameters_s.message_type, "CLIENT_VERSUS")) {
 			ThreadIndex[my_index] = 1;
 			if (ThreadIndex[other_index]) {//check if other's bit is 1
 				status = VERSUS;//change only here?
-				strcpy(SendStr, "SERVER_INVITE");
+				strcpy(SendStr, "SERVER_INVITE\n");
 				SendRes = SendString(SendStr, *t_socket);
 
 				if (SendRes == TRNS_FAILED)
@@ -364,7 +345,7 @@ static DWORD ServiceThread(LPVOID lpParam)
 					return 1;
 				}
 
-				strcpy(SendStr, "SERVER_PLAYER_MOVE_REQUEST");
+				strcpy(SendStr, "SERVER_PLAYER_MOVE_REQUEST\n");
 				SendRes = SendString(SendStr, *t_socket);
 
 				if (SendRes == TRNS_FAILED)
@@ -380,7 +361,7 @@ static DWORD ServiceThread(LPVOID lpParam)
 				//wait for another client for 30 second - wait to see that someone wrote to file
 				if (wait_for_another_player(other_index, 1)) {//there is another player
 					status = VERSUS;//change only here?
-					strcpy(SendStr, "SERVER_INVITE");
+					strcpy(SendStr, "SERVER_INVITE\n");
 					SendRes = SendString(SendStr, *t_socket);
 
 					if (SendRes == TRNS_FAILED)
@@ -390,7 +371,7 @@ static DWORD ServiceThread(LPVOID lpParam)
 						return 1;
 					}
 
-					strcpy(SendStr, "SERVER_PLAYER_MOVE_REQUEST");
+					strcpy(SendStr, "SERVER_PLAYER_MOVE_REQUEST\n");
 					SendRes = SendString(SendStr, *t_socket);
 
 					if (SendRes == TRNS_FAILED)
@@ -401,7 +382,7 @@ static DWORD ServiceThread(LPVOID lpParam)
 					}
 				}
 				else {//there is not other player
-					strcpy(SendStr, "SERVER_NO_OPPONENTS");
+					strcpy(SendStr, "SERVER_NO_OPPONENTS\n");
 					SendRes = SendString(SendStr, *t_socket);
 
 					if (SendRes == TRNS_FAILED)
@@ -414,7 +395,7 @@ static DWORD ServiceThread(LPVOID lpParam)
 			}
 
 		}
-		else if (STRINGS_ARE_EQUAL(message_type, "CLIENT_LEADERBOARD")) {
+		else if (STRINGS_ARE_EQUAL(parameters_s.message_type, "CLIENT_LEADERBOARD")) {
 			SendRes = send_leader_board(*t_socket);
 			if (SendRes == TRNS_FAILED)
 				{
@@ -422,27 +403,27 @@ static DWORD ServiceThread(LPVOID lpParam)
 					closesocket(*t_socket);
 				}
 		}
-		else if (STRINGS_ARE_EQUAL(message_type, "CLIENT_PLAYER_MOVE")) {
-			if (status = CPU) {
-				replace_string_with_enum(&step, parameters[0]);
+		else if (STRINGS_ARE_EQUAL(parameters_s.message_type, "CLIENT_PLAYER_MOVE")) {
+			if (status == CPU) {
+				 replace_string_with_enum(&step, parameters_s.param1);
 				int winner = -1;
 				winner = find_who_wins(cpu_step, step);
 				replace_enum_with_string(cpu_step, step_c);
 
 				if (winner == 0) {
-					sprintf(SendStr, "SERVER_GAME_RESULTS:server;%s;%s,server\n", step_c, parameters[0]);
+					sprintf(SendStr, "SERVER_GAME_RESULTS:server;%s;%s,server\n", step_c, parameters_s.param1);
 				}
 				else if (winner == 1) {
-					sprintf(SendStr, "SERVER_GAME_RESULTS:server;%s;%s,%s\n", step_c, parameters[0], user_name);
+					sprintf(SendStr, "SERVER_GAME_RESULTS:server;%s;%s,%s\n", step_c, parameters_s.param1, user_name);
 				}
 				else if (winner == 2) {
-					sprintf(SendStr, "SERVER_GAME_RESULTS:server;%s;%s\n", step_c, parameters[0]);
+					sprintf(SendStr, "SERVER_GAME_RESULTS:server;%s;%s\n", step_c, parameters_s.param1);
 				}
 				else 
 					printf("Error in player move\n");
 
 			}
-			else if (status = VERSUS) {
+			else if (status == VERSUS) {
 				/*send results when playing against other player */
 				char *line_versus = NULL;
 				char *other_user_name = NULL;
@@ -450,7 +431,7 @@ static DWORD ServiceThread(LPVOID lpParam)
 				if (check_if_file_exists()) {
 					step = 0;
 					int win = -1;
-					write_move_to_file(parameters[0]);
+					write_move_to_file(parameters_s.param1);
 					while (check_how_many_lines(line_versus) != 2) {
 						Sleep(1);
 
@@ -459,20 +440,20 @@ static DWORD ServiceThread(LPVOID lpParam)
 					ThreadIndex[my_index] = 0;
 					other_step_c = strtok(line_versus, game_session_delim);
 					other_user_name = strtok(NULL, game_session_delim);
-					replace_string_with_enum(&step, parameters[0]);
+					replace_string_with_enum(&step, parameters_s.param1);
 					replace_string_with_enum(&others_step, other_step_c);
 					win = find_who_wins(others_step, step); 
 					if (win == 0) {
 						replace_enum_with_string(step, step_c);
-						sprintf(SendStr, "SERVER_GAME_RESULTS:%s;%s;%s,%s\n", other_user_name,step_c, parameters[0], other_user_name);
+						sprintf(SendStr, "SERVER_GAME_RESULTS:%s;%s;%s,%s\n", other_user_name,step_c, parameters_s.param1, other_user_name);
 					}
 					else if (win == 1) {
 						replace_enum_with_string(step, step_c);
-						sprintf(SendStr, "SERVER_GAME_RESULTS:%s;%s;%s,%s\n", user_name, step_c, parameters[0], other_user_name);
+						sprintf(SendStr, "SERVER_GAME_RESULTS:%s;%s;%s,%s\n", user_name, step_c, parameters_s.param1, other_user_name);
 					}
 					else if (win == 2) {
 						replace_enum_with_string(step, step_c);
-						sprintf(SendStr, "SERVER_GAME_RESULTS:Tie;%s;%s\n", step_c, parameters[0], other_user_name);
+						sprintf(SendStr, "SERVER_GAME_RESULTS:Tie;%s;%s\n", step_c, parameters_s.param1, other_user_name);
 					}
 					else
 						printf("Error in player move\n");
@@ -489,21 +470,21 @@ static DWORD ServiceThread(LPVOID lpParam)
 					}
 					other_step_c = strtok(line_versus, game_session_delim);
 					other_user_name = strtok(NULL, game_session_delim);
-					write_move_to_file(parameters[0]);
-					replace_string_with_enum(&step, parameters[0]);
+					write_move_to_file(parameters_s.param1);
+					replace_string_with_enum(&step, parameters_s.param1);
 					replace_string_with_enum(&others_step, other_step_c);
 					win = find_who_wins(others_step, step);
 					if (win == 0) {
 						replace_enum_with_string(step, step_c);
-						sprintf(SendStr, "SERVER_GAME_RESULTS:%s;%s;%s,%s\n", other_user_name, step_c, parameters[0], other_user_name);
+						sprintf(SendStr, "SERVER_GAME_RESULTS:%s;%s;%s,%s\n", other_user_name, step_c, parameters_s.param1, other_user_name);
 					}
 					else if (win == 1) {
 						replace_enum_with_string(step, step_c);
-						sprintf(SendStr, "SERVER_GAME_RESULTS:%s;%s;%s,%s\n", user_name, step_c, parameters[0], other_user_name);
+						sprintf(SendStr, "SERVER_GAME_RESULTS:%s;%s;%s,%s\n", user_name, step_c, parameters_s.param1, other_user_name);
 					}
 					else if (win == 2) {
 						replace_enum_with_string(step, step_c);
-						sprintf(SendStr, "SERVER_GAME_RESULTS:Tie;%s;%s\n", step_c, parameters[0], other_user_name);
+						sprintf(SendStr, "SERVER_GAME_RESULTS:Tie;%s;%s\n", step_c, parameters_s.param1, other_user_name);
 					}
 					else
 						printf("Error in player move\n");
@@ -533,11 +514,11 @@ static DWORD ServiceThread(LPVOID lpParam)
 				return 1;
 			}
 		}
-		else if (STRINGS_ARE_EQUAL(message_type, "CLIENT_REPLAY")) {
+		else if (STRINGS_ARE_EQUAL(parameters_s.message_type, "CLIENT_REPLAY")) {
 			if (status == CPU) {//as  client cpu
 				status = CPU;
 				cpu_step = rand_step();
-				strcpy(SendStr, "SERVER_PLAYER_MOVE_REQUEST");
+				strcpy(SendStr, "SERVER_PLAYER_MOVE_REQUEST\n");
 				SendRes = SendString(SendStr, *t_socket);
 
 				if (SendRes == TRNS_FAILED)
@@ -552,7 +533,7 @@ static DWORD ServiceThread(LPVOID lpParam)
 				if (ThreadIndex[other_index]) {//check if other's bit is 1
 					status = VERSUS;//change only here?
 
-					strcpy(SendStr, "SERVER_PLAYER_MOVE_REQUEST");
+					strcpy(SendStr, "SERVER_PLAYER_MOVE_REQUEST\n");
 					SendRes = SendString(SendStr, *t_socket);
 
 					if (SendRes == TRNS_FAILED)
@@ -569,7 +550,7 @@ static DWORD ServiceThread(LPVOID lpParam)
 					if (wait_for_another_player(other_index, 1)) {//there is another player
 						status = VERSUS;//change only here?
 
-						strcpy(SendStr, "SERVER_PLAYER_MOVE_REQUEST");
+						strcpy(SendStr, "SERVER_PLAYER_MOVE_REQUEST\n");
 						SendRes = SendString(SendStr, *t_socket);
 
 						if (SendRes == TRNS_FAILED)
@@ -580,7 +561,7 @@ static DWORD ServiceThread(LPVOID lpParam)
 						}
 					}
 					else {//there is not other player
-						strcpy(SendStr, "SERVER_NO_OPPONENTS");
+						strcpy(SendStr, "SERVER_NO_OPPONENTS\n");
 						SendRes = SendString(SendStr, *t_socket);
 
 						if (SendRes == TRNS_FAILED)
@@ -589,7 +570,7 @@ static DWORD ServiceThread(LPVOID lpParam)
 							closesocket(*t_socket);
 							return 1;
 						}
-						strcpy(SendStr, "SERVER_MAIN_MENU");
+						strcpy(SendStr, "SERVER_MAIN_MENU\n");
 
 						SendRes = SendString(SendStr, *t_socket);
 
@@ -605,10 +586,10 @@ static DWORD ServiceThread(LPVOID lpParam)
 			}
 
 		}
-		else if (STRINGS_ARE_EQUAL(message_type, "CLIENT_REFRESH")) {
+		else if (STRINGS_ARE_EQUAL(parameters_s.message_type, "CLIENT_REFRESH")) {
 			/*bonus*/
 		}
-		else if (STRINGS_ARE_EQUAL(message_type, "CLIENT_DISCONNECT"))
+		else if (STRINGS_ARE_EQUAL(parameters_s.message_type, "CLIENT_DISCONNECT"))
 		{
 			Done = 1;
 		}
@@ -771,10 +752,11 @@ int send_leader_board(SOCKET *t_socket) {
 	}
 	return SendRes;
 }
-int parse_command(char *command, char message_type[], char** parameters) {
+int parse_command(char *command,  parameters_struct* parameters_s) {
 	char s[2] = ":";
 	char delim[2] = ";";
 	int counter = 0;
+	int counter_p = 0;
 	int i = 0;
 	int j = 0;
 	char* parameters_string;
@@ -784,28 +766,40 @@ int parse_command(char *command, char message_type[], char** parameters) {
 		l_string[i] = command[i];
 		if (command[i] == ';')
 			counter++;
+		if (command[i] == ':')
+			counter_p++;
 		i++;
 	}
 	l_string[i] = '\0';
 	//test
 	counter++;
 	//*parameters = (char*)malloc(counter * sizeof(char*));
-	
-	
-	message_type = strtok(l_string, s);
-	parameters_string = strtok(NULL, s);
-	if (counter > 1) {
-		parameters[j] = strtok(parameters_string, delim);
-		for (j = 1; j < counter; j++) {
-			parameters[j] = strtok(NULL, delim);
+
+	parameters_s->message_type = NULL;
+	parameters_s->param1 = NULL;
+	parameters_s->param2 = NULL;
+	parameters_s->param3 = NULL;
+	parameters_s->param4 = NULL;
+
+	parameters_s->message_type = strtok(l_string, s);
+	if (counter == 1 & counter_p == 1)
+		parameters_s->param1 = strtok( NULL, s);
+	else {
+		parameters_string = strtok(NULL, s);
+		if (counter > 1) {
+			//parameters[j] = strtok(parameters_string, delim);
+			parameters_s->param1 = strtok(parameters_string, delim);
+		if (counter >= 2)
+			parameters_s->param2 = strtok(NULL, delim);
+		if (counter >= 3)
+			parameters_s->param3 = strtok(NULL, delim);
+		if (counter == 4)
+			parameters_s->param4 = strtok(NULL, delim);
 		}
 	}
-	else {
-		strcpy(*parameters, parameters_string);
-	}
 	
+
 	return counter;
-	
 
 }
 int create_leader_board() {
@@ -899,23 +893,42 @@ int find_who_wins(step first_step, step second_step) {
 }
 void replace_enum_with_string(step step, char* string){
 	switch (step) {
-	case SPOCK: strcpy(string, "SPOCK");
-	case SCISSORS: strcpy(string, "SCISSORS");
-	case PAPER: strcpy(string, "PAPER");
-	case ROCK: strcpy(string, "ROCK");
-	case LIZARD: strcpy(string, "LIZARD");
+	case SPOCK: {		
+		strcpy(string, "SPOCK");
+		break;
+	}
+	case SCISSORS: {
+		strcpy(string, "SCISSORS");
+		break;
+
+	}
+	case PAPER: {
+		strcpy(string, "PAPER");
+		break;
+
+	}
+	case ROCK:{
+		strcpy(string, "ROCK");
+		break;
+
+	}
+	case LIZARD:{
+		strcpy(string, "LIZARD");
+		break;
+
+	}
 	}
 }
 void replace_string_with_enum(step *step, char* string) {
-	if(strcmp(string, "SPOCK"))
+	if(strcmp(string, "SPOCK")==0)
 		*step = SPOCK;
-	else if(strcmp(string, "PAPER"))
+	else if(strcmp(string, "PAPER")==0)
 		*step = PAPER;
-	else if (strcmp(string, "LIZARD"))
+	else if (strcmp(string, "LIZARD")==0)
 		*step = LIZARD;
-	else if (strcmp(string, "SCISSORS"))
+	else if (strcmp(string, "SCISSORS")==0)
 		*step = SCISSORS;
-	else if (strcmp(string, "ROCK"))
+	else if (strcmp(string, "ROCK")==0)
 		*step = ROCK;
 	else
 		printf("Error in replace_string_with_enum\n");

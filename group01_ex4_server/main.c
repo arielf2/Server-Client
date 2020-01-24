@@ -3,11 +3,12 @@
 
 
 
+HANDLE ThreadHandles[NUM_OF_WORKER_THREADS] = { NULL,NULL };
+SOCKET ThreadInputs[NUM_OF_WORKER_THREADS] = { NULL,NULL };
+BOOL   ThreadIndex[NUM_OF_WORKER_THREADS] = { FALSE, FALSE };
 
 
-HANDLE ThreadHandles[NUM_OF_WORKER_THREADS];
-SOCKET ThreadInputs[NUM_OF_WORKER_THREADS];
-BOOL   ThreadIndex[NUM_OF_WORKER_THREADS];
+
 
 int main(int argc, char *argv[]) {
 	int Ind;
@@ -97,8 +98,6 @@ int main(int argc, char *argv[]) {
 	if (return_val != 0)
 		printf("Error while creating leader_board_file\n");
 	/*oOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoO*/
-	ThreadIndex[0] = 0;
-	ThreadIndex[1] = 0;
 
 	/*oOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoO*/
 
@@ -144,7 +143,7 @@ int main(int argc, char *argv[]) {
 											  // ThreadInputs[Ind] when the
 											  // time comes.
 			threads_params[Ind].MySocket = &(ThreadInputs[Ind]);
-			threads_params[Ind].MySocket - Ind;
+			threads_params[Ind].my_index = Ind;
 			ThreadHandles[Ind] = CreateThread(
 				NULL,
 				0,
@@ -172,63 +171,10 @@ server_cleanup_1:
 }
 
 
-static int FindFirstUnusedThreadSlot()
-{
-	int Ind;
-
-	for (Ind = 0; Ind < NUM_OF_WORKER_THREADS; Ind++)
-	{
-		if (ThreadHandles[Ind] == NULL)
-			break;
-		else
-		{
-			// poll to check if thread finished running:
-			DWORD Res = WaitForSingleObject(ThreadHandles[Ind], 0);
-
-			if (Res == WAIT_OBJECT_0) // this thread finished running
-			{
-				CloseHandle(ThreadHandles[Ind]);
-				ThreadHandles[Ind] = NULL;
-				break;
-			}
-		}
-	}
-
-	return Ind;
-}
-
-
-static void CleanupWorkerThreads()
-{
-	int Ind;
-
-	for (Ind = 0; Ind < NUM_OF_WORKER_THREADS; Ind++)
-	{
-		if (ThreadHandles[Ind] != NULL)
-		{
-			// poll to check if thread finished running:
-			DWORD Res = WaitForSingleObject(ThreadHandles[Ind], INFINITE);
-
-			if (Res == WAIT_OBJECT_0)
-			{
-				closesocket(ThreadInputs[Ind]);
-				CloseHandle(ThreadHandles[Ind]);
-				ThreadHandles[Ind] = NULL;
-				break;
-			}
-			else
-			{
-				printf("Waiting for thread failed. Ending program\n");
-				return;
-			}
-		}
-	}
-}
-
-
 //Service thread is the thread that opens for each successful client connection and "talks" to the client.
 static DWORD ServiceThread(LPVOID lpParam)
 {
+	
 	thread_param_struct *thread_param;
 	int return_val = 0;
 	SOCKET *t_socket;
@@ -418,7 +364,7 @@ static DWORD ServiceThread(LPVOID lpParam)
 					sprintf(SendStr, "SERVER_GAME_RESULTS:server;%s;%s;%s\n", step_c, parameters_s.param1, user_name);
 				}
 				else if (winner == 2) {
-					sprintf(SendStr, "SERVER_GAME_RESULTS:Tie;%s;%s;server\n", step_c, *parameters_s.param1);
+					sprintf(SendStr, "SERVER_GAME_RESULTS:Tie;%s;%s;server\n", step_c, parameters_s.param1);
 				}
 				else 
 					printf("Error in player move\n");
@@ -616,6 +562,60 @@ static DWORD ServiceThread(LPVOID lpParam)
 	
 	closesocket(*t_socket);
 	return 0;
+}
+
+
+static int FindFirstUnusedThreadSlot()
+{
+	int Ind;
+
+	for (Ind = 0; Ind < NUM_OF_WORKER_THREADS; Ind++)
+	{
+		if (ThreadHandles[Ind] == NULL)
+			break;
+		else
+		{
+			// poll to check if thread finished running:
+			DWORD Res = WaitForSingleObject(ThreadHandles[Ind], 0);
+
+			if (Res == WAIT_OBJECT_0) // this thread finished running
+			{
+				CloseHandle(ThreadHandles[Ind]);
+				ThreadHandles[Ind] = NULL;
+				break;
+			}
+		}
+	}
+
+	return Ind;
+}
+
+
+static void CleanupWorkerThreads()
+{
+	int Ind;
+
+	for (Ind = 0; Ind < NUM_OF_WORKER_THREADS; Ind++)
+	{
+		if (ThreadHandles[Ind] != NULL)
+		{
+			// poll to check if thread finished running:
+			DWORD Res = WaitForSingleObject(ThreadHandles[Ind], INFINITE);
+
+			if (Res == WAIT_OBJECT_0)
+			{
+				closesocket(ThreadInputs[Ind]);
+				CloseHandle(ThreadHandles[Ind]);
+				ThreadHandles[Ind] = NULL;
+				break;
+			}
+			else
+			{
+				printf("Waiting for thread failed. Ending program\n");
+				return;
+			}
+		}
+	}
 }
 
 int check_if_file_exists() {
@@ -993,8 +993,7 @@ DWORD WINAPI exit_thread(LPVOID lpParam)
 	return 0;
 }
 void exit_function(exit_thread_param_struct *thread_param) {
-	extern HANDLE ThreadHandles[NUM_OF_WORKER_THREADS];
-	extern SOCKET ThreadInputs[NUM_OF_WORKER_THREADS];
+
 	int socket_return_val = -1;
 	int return_val = -1;
 	char input[5];

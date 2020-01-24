@@ -22,13 +22,6 @@
 #define _CRT_SECURE_NO_WARNINGS
 #define _WINSOCK_DEPRECATED_NO_WARNINGS
 
-#include <stdio.h>
-#include <string.h>
-#include <winsock2.h>
-#include <Windows.h>
-#include "SendRecv.h"
-
-
 #define SERVER_ADDRESS_STR "127.0.0.1"
 #define SERVER_PORT 2345
 #define NUM_OF_WORKER_THREADS 2
@@ -40,6 +33,15 @@
 #define SEND_STR_SIZE 350
 #define STRINGS_ARE_EQUAL( Str1, Str2 ) ( strcmp( (Str1), (Str2) ) == 0 )
 
+#include <stdio.h>
+#include <string.h>
+#include <winsock2.h>
+#include <Windows.h>
+#include "SendRecv.h"
+
+extern SOCKET ThreadInputs[NUM_OF_WORKER_THREADS];
+extern BOOL   ThreadIndex[NUM_OF_WORKER_THREADS];
+extern HANDLE ThreadHandles[NUM_OF_WORKER_THREADS];
 /*oOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoO*/
 
 typedef enum { TRNS_FAILED, TRNS_DISCONNECTED, TRNS_SUCCEEDED } TransferResult_t;

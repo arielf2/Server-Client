@@ -37,7 +37,7 @@
 
 #define MAX_LOOPS 3
 
-#define SEND_STR_SIZE 35
+#define SEND_STR_SIZE 350
 #define STRINGS_ARE_EQUAL( Str1, Str2 ) ( strcmp( (Str1), (Str2) ) == 0 )
 
 /*oOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoO*/

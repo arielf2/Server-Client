@@ -411,13 +411,14 @@ static DWORD ServiceThread(LPVOID lpParam)
 				replace_enum_with_string(cpu_step, step_c);
 
 				if (winner == 0) {
-					sprintf(SendStr, "SERVER_GAME_RESULTS:server;%s;%s,server\n", step_c, parameters_s.param1);
+					sprintf(SendStr, "SERVER_GAME_RESULTS:server;%s;%s;server\n", step_c, parameters_s.param1);
+					Done = 0;
 				}
 				else if (winner == 1) {
-					sprintf(SendStr, "SERVER_GAME_RESULTS:server;%s;%s,%s\n", step_c, parameters_s.param1, user_name);
+					sprintf(SendStr, "SERVER_GAME_RESULTS:server;%s;%s;%s\n", step_c, parameters_s.param1, user_name);
 				}
 				else if (winner == 2) {
-					sprintf(SendStr, "SERVER_GAME_RESULTS:server;%s;%s\n", step_c, parameters_s.param1);
+					sprintf(SendStr, "SERVER_GAME_RESULTS:Tie;%s;%s;server\n", step_c, *parameters_s.param1);
 				}
 				else 
 					printf("Error in player move\n");
@@ -445,7 +446,7 @@ static DWORD ServiceThread(LPVOID lpParam)
 					win = find_who_wins(others_step, step); 
 					if (win == 0) {
 						replace_enum_with_string(step, step_c);
-						sprintf(SendStr, "SERVER_GAME_RESULTS:%s;%s;%s,%s\n", other_user_name,step_c, parameters_s.param1, other_user_name);
+						sprintf(SendStr, "SERVER_GAME_RESULTS:%s;%s;%s,%s\n", other_user_name,step_c, *parameters_s.param1, other_user_name);
 					}
 					else if (win == 1) {
 						replace_enum_with_string(step, step_c);
@@ -504,6 +505,16 @@ static DWORD ServiceThread(LPVOID lpParam)
 					return 1;
 				}
 			}
+
+			SendRes = SendString(SendStr, *t_socket);
+
+			if (SendRes == TRNS_FAILED)
+			{
+				printf("Service socket error while writing, closing thread.\n");
+				closesocket(*t_socket);
+				return 1;
+			}
+			strcpy(SendStr, "SERVER_GAME_OVER_MENU\n");
 
 			SendRes = SendString(SendStr, *t_socket);
 

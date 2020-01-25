@@ -88,6 +88,8 @@ int check_if_file_exists();
 void exit_function(exit_thread_param_struct *thread_param);
 int wait_for_another_player(int index, BOOL val);
 int WaitForMessage(char **AcceptedString, int wait_period, SOCKET m_socket);
+DWORD WINAPI exit_thread_dword(LPVOID lpParam);
+
 
 /*oOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoO*/
 

@@ -113,8 +113,8 @@ int main(int argc, char *argv[]) {
 	for (Ind = 0; Ind < NUM_OF_WORKER_THREADS; Ind++)
 		ThreadHandles[Ind] = NULL;
 
-	//exit_thread_param.MainSocket = &MainSocket;
-	//exit_thread = CreateThreadSimple(exit_thread, &exit_thread_param, &thread_id);
+	exit_thread_param.MainSocket = &MainSocket;
+	exit_thread = CreateThreadSimple(exit_thread_dword, &exit_thread_param, &thread_id);
 
 	printf("Waiting for a client to connect...\n");
 
@@ -843,7 +843,6 @@ int parse_command(char *command,  parameters_struct* parameters_s) {
 	else {
 		parameters_string = strtok(NULL, s);
 		if (counter > 1) {
-			//parameters[j] = strtok(parameters_string, delim);
 			parameters_s->param1 = strtok(parameters_string, delim);
 		if (counter >= 2)
 			parameters_s->param2 = strtok(NULL, delim);
@@ -1017,7 +1016,7 @@ HANDLE CreateThreadSimple(LPTHREAD_START_ROUTINE p_start_routine, LPVOID p_threa
 
 	return thread_handle;
 }
-DWORD WINAPI exit_thread(LPVOID lpParam)
+DWORD WINAPI exit_thread_dword(LPVOID lpParam)
 {
 	thread_param_struct *thread_param;
 	int return_val = 0;
@@ -1043,15 +1042,17 @@ void exit_function(exit_thread_param_struct *thread_param) {
 	int return_val = -1;
 	char input[5];
 	while (1) {
-		scanf(input);
+		scanf("%s",input);
 		if (strcmp(input, "exit") == 0) {
 			/*close handles and sockets*/
 			for (int i = 0; i < NUM_OF_WORKER_THREADS; i++) {
-				closesocket(ThreadInputs[i]);
-				if (socket_return_val == 0)
+				if(ThreadInputs[i] != NULL)
+					closesocket(ThreadInputs[i]);
+				if (socket_return_val == 0)////////////////// get return val
 					printf("Error when exiting\n");
-				CloseHandle(ThreadHandles[i]);
-				if (return_val == 0)
+				if (ThreadHandles[i] != NULL)
+					CloseHandle(ThreadHandles[i]);
+				if (return_val == 0)////////////////// get return val
 					printf("Error when exiting\n");
 			}
 			closesocket(*thread_param->MainSocket);

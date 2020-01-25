@@ -237,7 +237,7 @@ int CheckServerResponse(char* response) {
 	else if ((CompareProtocolMessages(response, SERVER_NO_OPPONENTS) == 0)) {
 		resp = 9;
 	}
-
+	printf("Server response: %s\n", response);
 	// Messages with parameters
 
 
@@ -492,7 +492,7 @@ int ClientVersusClient() {
 	char user_move[MAX_MOVE_LENGTH] = "";
 	char *ServerInviteOrNoOpponent = NULL;
 	char *ClientMainMenu = NULL;
-
+	char rival_name[20] = "";
 	wait = WaitForMessage(&ServerInviteOrNoOpponent, SERVER_WAIT_TIMEOUT * 2); //need to wait for 30 seconds for another opponent
 	if (wait == TIMEOUT_ERROR) { //got TIMEOUT in receiving the message from server
 		return TIMEOUT_ERROR; //go back to main while loop, disconnect and show initial menu to user
@@ -506,7 +506,7 @@ int ClientVersusClient() {
 		SendMessageToDest(ClientMainMenu, &m_socket);
 		return 5;
 	}
-		
+	//sscanf(ServerInviteOrNoOpponent, "", rival_name);
 	if (server_response != 10) { //change value of 10 to something
 		printf("Debug Print:\nServer Didn't send SERVER_INVITE\n");
 		//error?
@@ -547,11 +547,13 @@ int ClientVersusClient() {
 		}
 		// parse results and print to screen  (check that SERVER_GAME_RESULTS was received)
 		//CheckServerResponse(GameResults);
-		printf("Game results: %s", GameResults);
+		
+		//printf("Game results: %s", GameResults);
+		SummarizeGameResults(GameResults);
 
-		wait = WaitForMessage(&GameOverMenu, SERVER_WAIT_TIMEOUT);
+		wait = WaitForMessage(&GameOverMenu, SERVER_WAIT_TIMEOUT);	
 		//check that we got gameovermenu
-		printf("Gameover menu: %s", GameOverMenu);
+		//printf("Gameover menu: %s", GameOverMenu);
 		if (wait == TIMEOUT_ERROR) { //got TIMEOUT in receiving the message from server
 			return TIMEOUT_ERROR; //go back to main while loop, disconnect and show initial menu to user
 		}
@@ -636,5 +638,25 @@ int parse_command(char *command, parameters_struct* parameters_s) {
 
 
 	return counter;
+
+}
+
+SummarizeGameResults(char *GameResults) {
+	//"SERVER_GAME_RESULTS:ariel;rock;scissors;raz"
+	printf("Inside SummarizeGameResults\n");
+	char msg_type[30] = "";
+	char other_player_name[20] = "";
+	char my_move[10] = "";
+	char other_player_move[10] = "";
+	char my_name[20] = "";
+	char rest[60] = "";
+	char winner[20] = "";
+	//sscanf(GameResults, "%[^;];%s", other_step_c, other_user_name);
+	sscanf(GameResults, "%[^:]:%[^\n]", msg_type, rest);
+	sscanf(rest, "%s %s %s %s", winner, other_player_move, my_move, other_player_name);
+	printf("You played: %s\n%s played: %s\n", my_move, other_player_name, other_player_move);
+	if (strcmp(winner, "Tie") != 0) {
+		printf("%s won!\n", winner);
+	}
 
 }

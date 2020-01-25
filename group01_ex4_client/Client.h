@@ -127,3 +127,6 @@ int SendMessageToDest(char *message, SOCKET *local_socket);
 
 
 int parse_command(char *command, parameters_struct* parameters_s);
+
+
+SummarizeGameResults(char *GameResults);

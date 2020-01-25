@@ -191,7 +191,8 @@ static DWORD ServiceThread(LPVOID lpParam)
 	char message_type[15];
 	//char* message_type = NULL;
 	char* parameters[4];
-	char* user_name = NULL;
+	//char* user_name = NULL; //
+	char user_name[20] = "";
 	step step = 0;
 	char step_c[9] = "";
 	status status = -1;
@@ -229,7 +230,8 @@ static DWORD ServiceThread(LPVOID lpParam)
 		
 		if (STRINGS_ARE_EQUAL(parameters_s.message_type, "CLIENT_REQUEST")) {
 
-			user_name = parameters_s.param1;
+			//user_name = parameters_s.param1; //
+			strcpy_s(user_name, 20, parameters_s.param1); // with strcpy user name doesnt become gibrish
 			strcpy(SendStr, "SERVER_APPROVED\n");
 			SendRes = SendString(SendStr, *t_socket);
 
@@ -372,66 +374,91 @@ static DWORD ServiceThread(LPVOID lpParam)
 			}
 			else if (status == VERSUS) {
 				/*send results when playing against other player */
-				char *line_versus = NULL;
-				char *other_user_name = NULL;
-				char *other_step_c = NULL;
+				//char *line_versus = NULL // this needs to be malloced??
+				char line_versus[255] = ""; // the line from the file is read into this variable
+
+				int i = 0;
+				char other_step_c[10] = "";
+				char other_user_name[20] = "";
+				//char *other_user_name = NULL;
+				//char *other_step_c = NULL;
+				char move[50] = "";
+				strcpy_s(move, 50, parameters_s.param1); // keep the user move because param1 becomes gibrish
 				if (check_if_file_exists()) {
 					step = 0;
 					int win = -1;
-					write_move_to_file(parameters_s.param1);
-					while (check_how_many_lines(line_versus) != 2) {
-						Sleep(1);
-
+					write_move_and_username_to_file(move, user_name);
+					while (check_how_many_lines(line_versus) < 2) {
+						Sleep(1000);
 					}
 					//I read other player move so turn off my biy
 					ThreadIndex[my_index] = 0;
-					other_step_c = strtok(line_versus, game_session_delim);
-					other_user_name = strtok(NULL, game_session_delim);
-					replace_string_with_enum(&step, parameters_s.param1);
+					//strtok(line_versus, game_session_delim);
+
+					sscanf(line_versus, "%[^;];%s", other_step_c, other_user_name); // get the other player's name and move
+
+					//other_step_c = strtok(line_versus, game_session_delim);
+
+					//other_user_name = strtok(NULL, game_session_delim);
+
+					//replace_string_with_enum(&step, parameters_s.param1);
+					replace_string_with_enum(&step, move);
 					replace_string_with_enum(&others_step, other_step_c);
 					win = find_who_wins(others_step, step); 
 					if (win == 0) {
 						replace_enum_with_string(step, step_c);
-						sprintf(SendStr, "SERVER_GAME_RESULTS:%s;%s;%s,%s\n", other_user_name,step_c, *parameters_s.param1, other_user_name);
+						//sprintf(SendStr, "SERVER_GAME_RESULTS:%s;%s;%s,%s\n", other_user_name, step_c, move, other_user_name);
+						sprintf(SendStr, "SERVER_GAME_RESULTS:%s %s %s %s\n", other_user_name, other_step_c, move, other_user_name);
 					}
 					else if (win == 1) {
 						replace_enum_with_string(step, step_c);
-						sprintf(SendStr, "SERVER_GAME_RESULTS:%s;%s;%s,%s\n", user_name, step_c, parameters_s.param1, other_user_name);
+						//sprintf(SendStr, "SERVER_GAME_RESULTS:%s;%s;%s,%s\n", user_name, step_c, move, other_user_name);
+						sprintf(SendStr, "SERVER_GAME_RESULTS:%s %s %s %s\n", user_name, other_step_c, move, other_user_name);
 					}
 					else if (win == 2) {
 						replace_enum_with_string(step, step_c);
-						sprintf(SendStr, "SERVER_GAME_RESULTS:Tie;%s;%s\n", step_c, parameters_s.param1, other_user_name);
+						//sprintf(SendStr, "SERVER_GAME_RESULTS:Tie;%s;%s\n", step_c, move, other_user_name);
+						sprintf(SendStr, "SERVER_GAME_RESULTS:Tie %s %s %s \n", step_c, move, other_user_name);
 					}
 					else
 						printf("Error in player move\n");
-
-
-
 				}
 				else 
 				{
+					
 					fp_game_session = fopen("GameSession.txt", "w");//create file
+					fclose(fp_game_session);
 					int win = -1;
-					while (check_how_many_lines(line_versus) != 1) {
-						Sleep(1);
+					while (check_how_many_lines(line_versus) < 1) {
+						Sleep(1000);
 					}
-					other_step_c = strtok(line_versus, game_session_delim);
-					other_user_name = strtok(NULL, game_session_delim);
-					write_move_to_file(parameters_s.param1);
-					replace_string_with_enum(&step, parameters_s.param1);
+					//get_move_and_username_from_line(other_step_c, other_user_name, line_versus);
+					sscanf(line_versus, "%[^;];%s", other_step_c, other_user_name);
+					//other_step_c = strtok(line_versus, game_session_delim);
+					//other_user_name = strtok(NULL, game_session_delim);
+					//write_move_to_file(parameters_s.param1); //rotem
+					write_move_and_username_to_file(move, user_name);	
+
+					//replace_string_with_enum(&step, parameters_s.param1);
+					//replace_string_with_enum(&others_step, other_step_c);
+
+					replace_string_with_enum(&step, move);
 					replace_string_with_enum(&others_step, other_step_c);
 					win = find_who_wins(others_step, step);
 					if (win == 0) {
 						replace_enum_with_string(step, step_c);
-						sprintf(SendStr, "SERVER_GAME_RESULTS:%s;%s;%s,%s\n", other_user_name, step_c, parameters_s.param1, other_user_name);
+						//sprintf(SendStr, "SERVER_GAME_RESULTS:%s;%s;%s,%s\n", other_user_name, step_c, move, other_user_name);
+						sprintf(SendStr, "SERVER_GAME_RESULTS:%s %s %s %s\n", other_user_name, other_step_c, move, other_user_name);
 					}
 					else if (win == 1) {
 						replace_enum_with_string(step, step_c);
-						sprintf(SendStr, "SERVER_GAME_RESULTS:%s;%s;%s,%s\n", user_name, step_c, parameters_s.param1, other_user_name);
+						//sprintf(SendStr, "SERVER_GAME_RESULTS:%s;%s;%s,%s\n", user_name, step_c, move, other_user_name);
+						sprintf(SendStr, "SERVER_GAME_RESULTS:%s %s %s %s\n", user_name, other_step_c, move, other_user_name);
 					}
 					else if (win == 2) {
 						replace_enum_with_string(step, step_c);
-						sprintf(SendStr, "SERVER_GAME_RESULTS:Tie;%s;%s\n", step_c, parameters_s.param1, other_user_name);
+						//sprintf(SendStr, "SERVER_GAME_RESULTS:Tie;%s;%s\n", step_c, move, other_user_name);
+						sprintf(SendStr, "SERVER_GAME_RESULTS:Tie %s %s %s\n", step_c, move, other_user_name);
 					}
 					else
 						printf("Error in player move\n");
@@ -654,6 +681,8 @@ int check_how_many_lines(char *line) {
 	int l_ret_val = -1;
 	int counter = 0; 
 	HANDLE l_mutex_handle = NULL;
+
+	
 	l_mutex_handle = OpenMutex(SYNCHRONIZE, TRUE, "game_session_file_mutex");
 
 	l_wait_code = WaitForSingleObject(l_mutex_handle, INFINITE);
@@ -663,15 +692,23 @@ int check_how_many_lines(char *line) {
 
 	}
 
-	fp = fopen("GameSession.txt", "r");
+	int file_open_error = fopen_s(&fp, "GameSession.txt", "r");
+	//fp = fopen("GameSession.txt", "r");
+	if (file_open_error != 0) {
+		printf("error opening file with error %d", GetLastError());
+	}
 	if (fp == NULL) {
 		printf("Error when check_how_many_lines\n");
 		return -1;
 	}
-	while (feof(fp)) {
-		fgets(line, 255, fp);
-		counter++;
+	while (feof(fp) == 0) {
+		
+		if (NULL != fgets(line, 30, fp)) {
+			if (!(STRINGS_ARE_EQUAL(line, "")))
+				counter++;
+		}
 	}
+	fclose(fp);
 	l_ret_val = ReleaseMutex(l_mutex_handle);
 	if (FALSE == l_ret_val)
 	{
@@ -681,7 +718,7 @@ int check_how_many_lines(char *line) {
 	
 }
 
-void write_move_to_file(char *move) {
+void write_move_and_username_to_file(char *move, char *username) {
 	FILE* fp;
 	int l_wait_code = -1;
 	int l_ret_val = -1;
@@ -695,14 +732,22 @@ void write_move_to_file(char *move) {
 
 	}
 
-	fopen_s(&fp, "GameSession.txt", "a");
+	int file_open_error = fopen_s(&fp, "GameSession.txt", "a");
+	if (file_open_error != 0) {
+		printf("Error opening file with error: %d", GetLastError());
+	}
 	fputs(move, fp);
+	fputs(";", fp);
+	fputs(username, fp);
+	fputs("\n", fp);
+
+	fclose(fp);
 	l_ret_val = ReleaseMutex(l_mutex_handle);
 	if (FALSE == l_ret_val)
 	{
 		printf("Error when releasing game_session_file_mutex\n");
 	}
-	fclose(fp);
+	
 }
 
 int write_in_leader_board(char user_name[], int win) {
@@ -1017,7 +1062,7 @@ void exit_function(exit_thread_param_struct *thread_param) {
 int wait_for_another_player(int index, BOOL val) {
 	int i = 0;
 	for (i = 0; i < 3; i++) {
-		Sleep(10);
+		Sleep(10000); // 10 seconds
 		if (ThreadIndex[index] == val)
 			return 1;
 	}

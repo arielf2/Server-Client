@@ -353,20 +353,26 @@ static DWORD ServiceThread(LPVOID lpParam)
 		}
 		else if (STRINGS_ARE_EQUAL(parameters_s.message_type, "CLIENT_PLAYER_MOVE")) {
 			if (status == CPU) {
-				 replace_string_with_enum(&step, parameters_s.param1);
+				char move[50] = "";
+				strcpy_s(move, 50, parameters_s.param1);
+				//replace_string_with_enum(&step, parameters_s.param1);
+				replace_string_with_enum(&step, move);
 				int winner = -1;
 				winner = find_who_wins(cpu_step, step);
 				replace_enum_with_string(cpu_step, step_c);
 
 				if (winner == 0) {
-					sprintf(SendStr, "SERVER_GAME_RESULTS:server;%s;%s;server\n", step_c, parameters_s.param1);
+					//sprintf(SendStr, "SERVER_GAME_RESULTS:server;%s;%s;server\n", step_c, parameters_s.param1);
+					sprintf(SendStr, "SERVER_GAME_RESULTS:Server %s %s %s\n", step_c, move, user_name);
 					Done = 0;
 				}
 				else if (winner == 1) {
-					sprintf(SendStr, "SERVER_GAME_RESULTS:server;%s;%s;%s\n", step_c, parameters_s.param1, user_name);
+					//sprintf(SendStr, "SERVER_GAME_RESULTS:server;%s;%s;%s\n", step_c, parameters_s.param1, user_name);
+					sprintf(SendStr, "SERVER_GAME_RESULTS:%s %s %s %s\n",user_name, step_c, move, user_name);
 				}
 				else if (winner == 2) {
-					sprintf(SendStr, "SERVER_GAME_RESULTS:Tie;%s;%s;server\n", step_c, parameters_s.param1);
+					//sprintf(SendStr, "SERVER_GAME_RESULTS:Tie;%s;%s;server\n", step_c, parameters_s.param1);
+					sprintf(SendStr, "SERVER_GAME_RESULTS:Tie %s %s %s\n", step_c, move, user_name);
 				}
 				else 
 					printf("Error in player move\n");

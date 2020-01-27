@@ -36,7 +36,6 @@ int main(int argc, char *argv[]) {
 		return 1;
 	}
 
-	/* The WinSock DLL is acceptable. Proceed. */
 
 	// Create a socket.    
 	MainSocket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
@@ -47,17 +46,6 @@ int main(int argc, char *argv[]) {
 		goto server_cleanup_1;
 	}
 
-	// Bind the socket.
-	/*
-		For a server to accept client connections, it must be bound to a network address within the system.
-		The following code demonstrates how to bind a socket that has already been created to an IP address
-		and port.
-		Client applications use the IP address and port to connect to the host network.
-		The sockaddr structure holds information regarding the address family, IP address, and port number.
-		sockaddr_in is a subset of sockaddr and is used for IP version 4 applications.
-   */
-   // Create a sockaddr_in object and set its values.
-   // Declare variables
 
 	Address = inet_addr(SERVER_ADDRESS_STR);
 	if (Address == INADDR_NONE)
@@ -71,16 +59,7 @@ int main(int argc, char *argv[]) {
 	service.sin_addr.s_addr = Address;
 	service.sin_port = htons(atoi(argv[1])); //The htons function converts a u_short from host to TCP/IP network byte order 
 									   //( which is big-endian ).
-	/*
-		The three lines following the declaration of sockaddr_in service are used to set up
-		the sockaddr structure:
-		AF_INET is the Internet address family.
-		"127.0.0.1" is the local IP address to which the socket will be bound.
-		2345 is the port number to which the socket will be bound.
-	*/
 
-	// Call the bind function, passing the created socket and the sockaddr_in structure as parameters. 
-	// Check for general errors.
 	bindRes = bind(MainSocket, (SOCKADDR*)&service, sizeof(service));
 	if (bindRes == SOCKET_ERROR)
 	{
@@ -99,8 +78,6 @@ int main(int argc, char *argv[]) {
 		printf("Error while creating leader_board_file\n");
 	/*oOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoO*/
 
-	/*oOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoO*/
-
 	// Listen on the Socket.
 	ListenRes = listen(MainSocket, SOMAXCONN);
 	if (ListenRes == SOCKET_ERROR)
@@ -108,6 +85,7 @@ int main(int argc, char *argv[]) {
 		printf("Failed listening on socket, error %ld.\n", WSAGetLastError());
 		goto server_cleanup_2;
 	}
+	/*oOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoO*/
 
 	// Initialize all thread handles to NULL, to mark that they have not been initialized
 	for (Ind = 0; Ind < NUM_OF_WORKER_THREADS; Ind++)
@@ -279,6 +257,7 @@ static DWORD ServiceThread(LPVOID lpParam)
 			}
 			
 		}
+
 		else if (STRINGS_ARE_EQUAL(parameters_s.message_type, "CLIENT_VERSUS")) {
 			ThreadIndex[my_index] = 1;
 			if (ThreadIndex[other_index]) {//check if other's bit is 1
@@ -834,7 +813,6 @@ int parse_command(char *command,  parameters_struct* parameters_s) {
 	l_string[i] = '\0';
 	//test
 	counter++;
-	//*parameters = (char*)malloc(counter * sizeof(char*));
 
 	parameters_s->message_type = NULL;
 	parameters_s->param1 = NULL;

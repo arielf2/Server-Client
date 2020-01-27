@@ -363,7 +363,7 @@ static DWORD ServiceThread(LPVOID lpParam)
 					Done = 0;
 				}
 				else if (winner == 1) {
-					sprintf(SendStr, "SERVER_GAME_RESULTS:server;%s;%s;%s\n", step_c, parameters_s.param1, user_name);
+					sprintf(SendStr, "SERVER_GAME_RESULTS:%s;%s;%s;server\n", user_name, step_c, parameters_s.param1);
 				}
 				else if (winner == 2) {
 					sprintf(SendStr, "SERVER_GAME_RESULTS:Tie;%s;%s;server\n", step_c, parameters_s.param1);
@@ -1040,6 +1040,7 @@ void exit_function(exit_thread_param_struct *thread_param) {
 
 	int socket_return_val = -1;
 	int return_val = -1;
+	int main_return_val = -1;
 	char input[5];
 	while (1) {
 		scanf("%s",input);
@@ -1047,15 +1048,17 @@ void exit_function(exit_thread_param_struct *thread_param) {
 			/*close handles and sockets*/
 			for (int i = 0; i < NUM_OF_WORKER_THREADS; i++) {
 				if(ThreadInputs[i] != NULL)
-					closesocket(ThreadInputs[i]);
-				if (socket_return_val == 0)////////////////// get return val
+					socket_return_val = closesocket(ThreadInputs[i]);
+				if (socket_return_val != 0)////////////////// get return val
 					printf("Error when exiting\n");
 				if (ThreadHandles[i] != NULL)
-					CloseHandle(ThreadHandles[i]);
+					return_val = CloseHandle(ThreadHandles[i]);
 				if (return_val == 0)////////////////// get return val
 					printf("Error when exiting\n");
 			}
-			closesocket(*thread_param->MainSocket);
+			main_return_val = closesocket(*thread_param->MainSocket);
+			if (main_return_val != 0)////////////////// get return val
+				printf("Error when exiting\n");
 			return 0;
 		}
 	}

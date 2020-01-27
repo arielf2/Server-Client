@@ -86,7 +86,7 @@ void MainClient(char* ip_address, char* port, char* username)
 			server_resp = CheckServerResponse(AcceptedStr, NULL);
 			if (server_resp == 1) { //server denied - show menu
 				closesocket(m_socket); //disconnect from server
-				if (ReconnectMenu(2, ip_address, port) == 1) {
+				if (ReconnectMenu(1, ip_address, port) == 1) {
 					m_socket = CreateAndCheckSocket();
 					continue;
 				}

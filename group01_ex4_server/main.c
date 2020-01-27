@@ -212,6 +212,8 @@ static DWORD ServiceThread(LPVOID lpParam)
 		parse_command(AcceptedStr, &parameters_s);
 		
 		
+		//if (!CompareProtocolMessagesserver(parameters_s.message_type, "CLIENT_REQUEST")) {
+
 		if (STRINGS_ARE_EQUAL(parameters_s.message_type, "CLIENT_REQUEST")) {
 
 			strcpy_s(user_name, 20, parameters_s.param1); // with strcpy user name doesnt become gibrish
@@ -1079,5 +1081,35 @@ int WaitForMessage(char **AcceptedString, int wait_period, SOCKET m_socket) {
 	}
 	return 0;
 	
+
+}
+
+
+int CompareProtocolMessagesserver(char *str_a, char *str_b) {
+
+	int i = 0;
+	int len_a = GetLen(str_a);
+	int len_b = GetLen(str_b);
+	if (len_a == 0 || len_b == 0) {
+		//one of the strings is either empty or too long
+		printf("Error in one of the compared strings\n");
+		return 100; //some error code
+	}
+
+	if (len_a != len_b) {
+		return 1; //strings are different
+	}
+
+	while (*str_a != '\n' && *str_b != '\n') {
+		if (*str_a != *str_b) {
+			//strings are different
+			return 1;
+			break;
+		}
+		str_a++;
+		str_b++;
+	}
+
+	return 0;
 
 }

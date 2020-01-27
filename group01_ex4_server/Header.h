@@ -33,7 +33,7 @@
 #define SEND_STR_SIZE 350
 #define STRINGS_ARE_EQUAL( Str1, Str2 ) ( strcmp( (Str1), (Str2) ) == 0 )
 
-#include "SharedFuncs.h"
+//#include "SharedFuncs.h"
 #include <stdio.h>
 #include <string.h>
 #include <winsock2.h>
@@ -62,13 +62,13 @@ typedef struct _thread_param_struct
 	int my_index;
 
 } thread_param_struct;
-//typedef struct _parameters_struct {
-//	char *message_type;
-//	char *param1;
-//	char *param2;
-//	char *param3;
-//	char *param4;
-//}parameters_struct;
+typedef struct _parameters_struct {
+	char *message_type;
+	char *param1;
+	char *param2;
+	char *param3;
+	char *param4;
+}parameters_struct;
 /*oOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoO*/
 
 static int FindFirstUnusedThreadSlot();
@@ -89,6 +89,7 @@ void exit_function(exit_thread_param_struct *thread_param);
 int wait_for_another_player(int index, BOOL val);
 int WaitForMessage(char **AcceptedString, int wait_period, SOCKET m_socket);
 DWORD WINAPI exit_thread_dword(LPVOID lpParam);
+int CompareProtocolMessagesserver(char *str_a, char *str_b);
 
 
 /*oOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoO*/

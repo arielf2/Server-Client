@@ -29,7 +29,7 @@
 #pragma comment(lib, "ws2_32.lib")
 
 #define MAX_LOOPS 3
-
+#define TIMEOUT 600
 #define SEND_STR_SIZE 350
 #define STRINGS_ARE_EQUAL( Str1, Str2 ) ( strcmp( (Str1), (Str2) ) == 0 )
 
@@ -43,6 +43,8 @@
 extern SOCKET ThreadInputs[NUM_OF_WORKER_THREADS];
 extern BOOL   ThreadIndex[NUM_OF_WORKER_THREADS];
 extern HANDLE ThreadHandles[NUM_OF_WORKER_THREADS];
+extern BOOL   exit_state;
+
 /*oOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoO*/
 
 typedef enum { TRNS_FAILED, TRNS_DISCONNECTED, TRNS_SUCCEEDED } TransferResult_t;

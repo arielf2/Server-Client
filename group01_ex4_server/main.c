@@ -6,7 +6,7 @@
 HANDLE ThreadHandles[NUM_OF_WORKER_THREADS] = { NULL,NULL };
 SOCKET ThreadInputs[NUM_OF_WORKER_THREADS] = { NULL,NULL };
 BOOL   ThreadIndex[NUM_OF_WORKER_THREADS] = { FALSE, FALSE };
-
+BOOL   exit_state = FALSE;
 
 
 int main(int argc, char *argv[]) {
@@ -97,7 +97,7 @@ int main(int argc, char *argv[]) {
 
 	printf("Waiting for a client to connect...\n");
 
-	for (Loop = 0; Loop < MAX_LOOPS; Loop++)
+	while(exit_state == FALSE)
 	{
 		SOCKET AcceptSocket = accept(MainSocket, NULL, NULL);
 		if (AcceptSocket == INVALID_SOCKET)
@@ -205,8 +205,8 @@ static DWORD ServiceThread(LPVOID lpParam)
 	while (!Done)
 	{
 		char *AcceptedStr = NULL;
-		if (WaitForMessage(&AcceptedStr,150, *t_socket) == -1) {
-			/* TO or error in recive message. close thread*/
+		if (WaitForMessage(&AcceptedStr, TIMEOUT, *t_socket) == -1) {
+			/* TO or error in recieve message. close thread*/
 			return 1;
 		}
 		parse_command(AcceptedStr, &parameters_s);
@@ -265,7 +265,6 @@ static DWORD ServiceThread(LPVOID lpParam)
 			}
 			
 		}
-
 		else if (STRINGS_ARE_EQUAL(parameters_s.message_type, "CLIENT_VERSUS")) {
 
 			ThreadIndex[my_index] = 1;
@@ -1012,6 +1011,7 @@ void exit_function(exit_thread_param_struct *thread_param) {
 		scanf("%s",input);
 		if (strcmp(input, "exit") == 0) {
 			/*close handles*/
+			exit_state = TRUE;
 			for (int i = 0; i < NUM_OF_WORKER_THREADS; i++) {
 
 				if (ThreadHandles[i] != NULL) {

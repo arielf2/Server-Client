@@ -445,14 +445,7 @@ static DWORD ServiceThread(LPVOID lpParam)
 						printf("Error whem removing file.\n"); 
 				}
 
-				SendRes = SendString(SendStr, *t_socket);
-
-				if (SendRes == TRNS_FAILED)
-				{
-					printf("Service socket error while writing, closing thread.\n");
-					closesocket(*t_socket);
-					return 1;
-				}
+				
 			}
 
 			SendRes = SendString(SendStr, *t_socket);

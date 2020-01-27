@@ -177,6 +177,7 @@ static DWORD ServiceThread(LPVOID lpParam)
 	char message_type[15];
 	char* parameters[4];
 	char user_name[20] = "";
+	char other_user_name[20] = "";
 	step step = 0;
 	char step_c[9] = "";
 	status status = -1;
@@ -369,7 +370,7 @@ static DWORD ServiceThread(LPVOID lpParam)
 
 				int i = 0;
 				char other_step_c[10] = "";
-				char other_user_name[20] = "";
+				
 				char move[50] = "";
 				strcpy_s(move, 50, parameters_s.param1); // keep the user move because param1 becomes gibrish
 				if (check_if_file_exists()) {
@@ -389,17 +390,14 @@ static DWORD ServiceThread(LPVOID lpParam)
 					win = find_who_wins(others_step, step); 
 					if (win == 0) {
 						replace_enum_with_string(step, step_c);
-						//sprintf(SendStr, "SERVER_GAME_RESULTS:%s;%s;%s,%s\n", other_user_name, step_c, move, other_user_name);
 						sprintf(SendStr, "SERVER_GAME_RESULTS:%s %s %s %s\n", other_user_name, other_step_c, move, other_user_name);
 					}
 					else if (win == 1) {
 						replace_enum_with_string(step, step_c);
-						//sprintf(SendStr, "SERVER_GAME_RESULTS:%s;%s;%s,%s\n", user_name, step_c, move, other_user_name);
 						sprintf(SendStr, "SERVER_GAME_RESULTS:%s %s %s %s\n", user_name, other_step_c, move, other_user_name);
 					}
 					else if (win == 2) {
 						replace_enum_with_string(step, step_c);
-						//sprintf(SendStr, "SERVER_GAME_RESULTS:Tie;%s;%s\n", step_c, move, other_user_name);
 						sprintf(SendStr, "SERVER_GAME_RESULTS:Tie %s %s %s \n", step_c, move, other_user_name);
 					}
 					else
@@ -422,17 +420,15 @@ static DWORD ServiceThread(LPVOID lpParam)
 					win = find_who_wins(others_step, step);
 					if (win == 0) {
 						replace_enum_with_string(step, step_c);
-						//sprintf(SendStr, "SERVER_GAME_RESULTS:%s;%s;%s,%s\n", other_user_name, step_c, move, other_user_name);
+					
 						sprintf(SendStr, "SERVER_GAME_RESULTS:%s %s %s %s\n", other_user_name, other_step_c, move, other_user_name);
 					}
 					else if (win == 1) {
 						replace_enum_with_string(step, step_c);
-						//sprintf(SendStr, "SERVER_GAME_RESULTS:%s;%s;%s,%s\n", user_name, step_c, move, other_user_name);
 						sprintf(SendStr, "SERVER_GAME_RESULTS:%s %s %s %s\n", user_name, other_step_c, move, other_user_name);
 					}
 					else if (win == 2) {
 						replace_enum_with_string(step, step_c);
-						//sprintf(SendStr, "SERVER_GAME_RESULTS:Tie;%s;%s\n", step_c, move, other_user_name);
 						sprintf(SendStr, "SERVER_GAME_RESULTS:Tie %s %s %s\n", step_c, move, other_user_name);
 					}
 					else
@@ -513,7 +509,7 @@ static DWORD ServiceThread(LPVOID lpParam)
 						}
 					}
 					else {//there is no other player
-						strcpy(SendStr, "SERVER_OPPONENT_QUIT\n");
+						sprintf(SendStr, "SERVER_OPPONENT_QUIT:%s\n", other_user_name);
 						SendRes = SendString(SendStr, *t_socket);
 
 						if (SendRes == TRNS_FAILED)

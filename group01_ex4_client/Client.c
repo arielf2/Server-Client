@@ -83,7 +83,7 @@ void MainClient(char* ip_address, char* port, char* username)
 			}
 
 			//else - we received a valid message
-			server_resp = CheckServerResponse(AcceptedStr);
+			server_resp = CheckServerResponse(AcceptedStr, NULL);
 			if (server_resp == 1) { //server denied - show menu
 				closesocket(m_socket); //disconnect from server
 				if (ReconnectMenu(2, ip_address, port) == 1) {
@@ -214,12 +214,13 @@ int CreateAndCheckSocket() {
 	return 0;
 }
 
-int CheckServerResponse(char* response) {
+int CheckServerResponse(char* response, char* parameter) {
 	//if (response == NULL) {
 	//	return 1;
 	//}
-
-
+	parameters_struct p_struct;
+	char msg_type[40] = "";
+	char param[40] = "";
 	// Messages without parameters
 	int resp = -1;
 	if (CompareProtocolMessages(response, SERVER_APPROVED) == 0) {
@@ -237,8 +238,17 @@ int CheckServerResponse(char* response) {
 	else if ((CompareProtocolMessages(response, SERVER_NO_OPPONENTS) == 0)) {
 		resp = 9;
 	}
+	else if ((CompareProtocolMessages(response, "SERVER_INVITE\n") == 0)) {
+		resp = 10;
+	}
+	//parse_command(response, &p_struct);
+	//if (strcmp(p_struct.message_type, "SERVER_INVITE") == 0) {
+	//	strcpy_s(parameter, 20, p_struct.param1);
+	//}
+
 	//printf("Server response: %s\n", response);
 	// Messages with parameters
+
 
 
 	free(response);
@@ -261,7 +271,7 @@ int GameFlow() {
 		if (wait == TIMEOUT_ERROR) { //got TIMEOUT in receiving the message from server
 			return TIMEOUT_ERROR; //go back to main while loop, disconnect and show initial menu to user
 		}
-		server_response = CheckServerResponse(AcceptedStr);
+		server_response = CheckServerResponse(AcceptedStr, NULL);
 		if (server_response != 2) {
 			printf("Debug Print:\nServer Didn't send SERVER_MAIN_MENU\n");
 			//error?
@@ -367,7 +377,7 @@ int ClientVersusServer() {
 			return TIMEOUT_ERROR; //go back to main while loop, disconnect and show initial menu to user
 		}
 
-		server_response = CheckServerResponse(MoveRequest);
+		server_response = CheckServerResponse(MoveRequest, NULL);
 		//printf("Move request: %s", MoveRequest);
 		if (server_response != 3) {
 			printf("Debug Print:\nServer Didn't send SERVER_PLAYER_MOVE_REQUEST\n");
@@ -410,7 +420,6 @@ int ClientVersusServer() {
 		PrepareMessage(&ClientReplay, "CLIENT_REPLAY", NULL, NULL, NULL, 0);
 		SendMessageToDest(ClientReplay, &m_socket);
 	}
-
 	return 5;
 }
 
@@ -445,7 +454,7 @@ int Leaderboard() {
 		return TIMEOUT_ERROR; //go back to main while loop, disconnect and show initial menu to user
 	}
 
-	server_response = CheckServerResponse(LeaderboardMsg);
+	server_response = CheckServerResponse(LeaderboardMsg, NULL);
 	//if (server_response != 2) {
 	//	printf("Debug Print:\nServer Didn't send SERVER_LEADERBOARD\n");
 	//	//error?
@@ -459,7 +468,7 @@ int Leaderboard() {
 		return TIMEOUT_ERROR; //go back to main while loop, disconnect and show initial menu to user
 	}
 
-	server_response = CheckServerResponse(LeaderboardMenu);
+	server_response = CheckServerResponse(LeaderboardMenu,NULL );
 	//if (server_response != 2) {
 	//	printf("Debug Print:\nServer Didn't send SERVER_LEADERBOARD_MENU\n");
 	//	//error?
@@ -492,13 +501,13 @@ int ClientVersusClient() {
 	if (wait == TIMEOUT_ERROR) { //got TIMEOUT in receiving the message from server
 		return TIMEOUT_ERROR; //go back to main while loop, disconnect and show initial menu to user
 	}
-
-	server_response = CheckServerResponse(ServerInviteOrNoOpponent); // need to parse parameters
+	printf("Debug 2: %s", ServerInviteOrNoOpponent);
+	server_response = CheckServerResponse(ServerInviteOrNoOpponent, rival_name); // need to parse parameters
 	//check that the response is "server invite" or "no opponent"
 	if (server_response == 9) { //no opponent
 		//return to main menu: send "CLIENT MAIN MENU
-		PrepareMessage(&ClientMainMenu, "CLIENT_MAIN_MENU", NULL, NULL, NULL, 0);
-		SendMessageToDest(ClientMainMenu, &m_socket);
+		//PrepareMessage(&ClientMainMenu, "CLIENT_MAIN_MENU", NULL, NULL, NULL, 0);
+		//SendMessageToDest(ClientMainMenu, &m_socket);
 		return 5;
 	}
 	//sscanf(ServerInviteOrNoOpponent, "", rival_name);
@@ -515,7 +524,7 @@ int ClientVersusClient() {
 		if (wait == TIMEOUT_ERROR) { //got TIMEOUT in receiving the message from server
 			return TIMEOUT_ERROR; //go back to main while loop, disconnect and show initial menu to user
 		}
-		server_response = CheckServerResponse(MoveRequestOrOpponentQuit); // need to parse parameters
+		server_response = CheckServerResponse(MoveRequestOrOpponentQuit, NULL); // need to parse parameters
 		if (server_response == 13113) { // 13113 is (example)  SERVER OPPONENT QUIT
 			printf("Debug Print: opponent quits \n");
 			game_not_finished = 0;
@@ -530,12 +539,12 @@ int ClientVersusClient() {
 		GetUserMove(user_move);
 		PrepareMessage(&PlayerMove, "CLIENT_PLAYER_MOVE", user_move, NULL, NULL, 1);
 		//printf("Player Move: %s", PlayerMove);
-		if (SendMessageToDest(PlayerMove, &m_socket) == 0) { //bad value check
-			//error
+		if (SendMessageToDest(PlayerMove, &m_socket) != 0) { //bad value check
+			printf("Error sending a message\n");
 		}
 		//wait for server game results
 
-		wait = WaitForMessage(&GameResults, SERVER_WAIT_TIMEOUT * 2);
+		wait = WaitForMessage(&GameResults, SERVER_WAIT_TIMEOUT * 10);
 
 		if (wait == TIMEOUT_ERROR) { //got TIMEOUT in receiving the message from server
 			return TIMEOUT_ERROR; //go back to main while loop, disconnect and show initial menu to user
@@ -563,11 +572,14 @@ int ClientVersusClient() {
 		//else - user chose 1. Play Again
 		PrepareMessage(&ClientReplay, "CLIENT_REPLAY", NULL, NULL, NULL, 0);
 		printf("replay: %s", ClientReplay);
-		SendMessageToDest(ClientReplay, &m_socket);
+		if (SendMessageToDest(ClientReplay, &m_socket) != 0) {
+			printf("Error sending client replay message");
+		}
 	}
 
 	//return 6;
 }
+
 
 int parse_command(char *command, parameters_struct* parameters_s) {
 	char s[2] = ":";
@@ -590,7 +602,7 @@ int parse_command(char *command, parameters_struct* parameters_s) {
 	l_string[i] = '\0';
 	//test
 	counter++;
-	//*parameters = (char*)malloc(counter * sizeof(char
+
 	parameters_s->message_type = NULL;
 	parameters_s->param1 = NULL;
 	parameters_s->param2 = NULL;
@@ -603,34 +615,15 @@ int parse_command(char *command, parameters_struct* parameters_s) {
 	else {
 		parameters_string = strtok(NULL, s);
 		if (counter > 1) {
-			char* param_one = (char*)malloc(40 * sizeof(char*));
-			strcpy(param_one, strtok(parameters_string, delim));
-			//parameters[j] = strtok(parameters_string, delim);
-			//parameters_s->param1 = strtok(parameters_string, delim); //rotem
-			parameters_s->param1 = param_one;
-			if (counter >= 2) {
-
-				char* param_two = (char*)malloc(40 * sizeof(char*));
-				strcpy(param_two, strtok(NULL, delim));
-				parameters_s->param2 = param_two;
-				//parameters_s->param2 = strtok(NULL, delim); //rotem
-			}
+			parameters_s->param1 = strtok(parameters_string, delim);
+			if (counter >= 2)
+				parameters_s->param2 = strtok(NULL, delim);
 			if (counter >= 3)
-			{
-				char* param_three = (char*)malloc(40 * sizeof(char*));
-				strcpy(param_three, strtok(NULL, delim));
-				parameters_s->param3 = param_three;
-				// parameters_s->param3 = strtok(NULL, delim);// rotem
-			}
-			if (counter == 4) {
-				char* param_four = (char*)malloc(40 * sizeof(char*));
-				strcpy(param_four, strtok(NULL, delim));
-				parameters_s->param4 = param_four;
-				//parameters_s->param4 = strtok(NULL, delim); //rotem
-			}
+				parameters_s->param3 = strtok(NULL, delim);
+			if (counter == 4)
+				parameters_s->param4 = strtok(NULL, delim);
 		}
 	}
-
 
 	return counter;
 

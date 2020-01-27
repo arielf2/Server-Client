@@ -167,9 +167,7 @@ static DWORD ServiceThread(LPVOID lpParam)
 	step others_step = 0;
 	step cpu_step = 0;
 	char message_type[15];
-	//char* message_type = NULL;
 	char* parameters[4];
-	//char* user_name = NULL; //
 	char user_name[20] = "";
 	step step = 0;
 	char step_c[9] = "";
@@ -208,7 +206,6 @@ static DWORD ServiceThread(LPVOID lpParam)
 		
 		if (STRINGS_ARE_EQUAL(parameters_s.message_type, "CLIENT_REQUEST")) {
 
-			//user_name = parameters_s.param1; //
 			strcpy_s(user_name, 20, parameters_s.param1); // with strcpy user name doesnt become gibrish
 			strcpy(SendStr, "SERVER_APPROVED\n");
 			SendRes = SendString(SendStr, *t_socket);
@@ -259,6 +256,7 @@ static DWORD ServiceThread(LPVOID lpParam)
 		}
 
 		else if (STRINGS_ARE_EQUAL(parameters_s.message_type, "CLIENT_VERSUS")) {
+
 			ThreadIndex[my_index] = 1;
 			if (ThreadIndex[other_index]) {//check if other's bit is 1
 				status = VERSUS;//change only here?
@@ -334,7 +332,6 @@ static DWORD ServiceThread(LPVOID lpParam)
 			if (status == CPU) {
 				char move[50] = "";
 				strcpy_s(move, 50, parameters_s.param1);
-				//replace_string_with_enum(&step, parameters_s.param1);
 				replace_string_with_enum(&step, move);
 				int winner = -1;
 				winner = find_who_wins(cpu_step, step);
@@ -346,7 +343,7 @@ static DWORD ServiceThread(LPVOID lpParam)
 					Done = 0;
 				}
 				else if (winner == 1) {
-					sprintf(SendStr, "SERVER_GAME_RESULTS:server;%s;%s;%s\n", step_c, parameters_s.param1, user_name);
+					sprintf(SendStr, "SERVER_GAME_RESULTS:%s %s %s %s\n",user_name, step_c, move, user_name);
 				}
 				else if (winner == 2) {
 					//sprintf(SendStr, "SERVER_GAME_RESULTS:Tie;%s;%s;server\n", step_c, parameters_s.param1);
@@ -358,14 +355,11 @@ static DWORD ServiceThread(LPVOID lpParam)
 			}
 			else if (status == VERSUS) {
 				/*send results when playing against other player */
-				//char *line_versus = NULL // this needs to be malloced??
 				char line_versus[255] = ""; // the line from the file is read into this variable
 
 				int i = 0;
 				char other_step_c[10] = "";
 				char other_user_name[20] = "";
-				//char *other_user_name = NULL;
-				//char *other_step_c = NULL;
 				char move[50] = "";
 				strcpy_s(move, 50, parameters_s.param1); // keep the user move because param1 becomes gibrish
 				if (check_if_file_exists()) {
@@ -377,15 +371,9 @@ static DWORD ServiceThread(LPVOID lpParam)
 					}
 					//I read other player move so turn off my biy
 					ThreadIndex[my_index] = 0;
-					//strtok(line_versus, game_session_delim);
 
 					sscanf(line_versus, "%[^;];%s", other_step_c, other_user_name); // get the other player's name and move
 
-					//other_step_c = strtok(line_versus, game_session_delim);
-
-					//other_user_name = strtok(NULL, game_session_delim);
-
-					//replace_string_with_enum(&step, parameters_s.param1);
 					replace_string_with_enum(&step, move);
 					replace_string_with_enum(&others_step, other_step_c);
 					win = find_who_wins(others_step, step); 
@@ -416,15 +404,8 @@ static DWORD ServiceThread(LPVOID lpParam)
 					while (check_how_many_lines(line_versus) < 1) {
 						Sleep(1000);
 					}
-					//get_move_and_username_from_line(other_step_c, other_user_name, line_versus);
 					sscanf(line_versus, "%[^;];%s", other_step_c, other_user_name);
-					//other_step_c = strtok(line_versus, game_session_delim);
-					//other_user_name = strtok(NULL, game_session_delim);
-					//write_move_to_file(parameters_s.param1); //rotem
 					write_move_and_username_to_file(move, user_name);	
-
-					//replace_string_with_enum(&step, parameters_s.param1);
-					//replace_string_with_enum(&others_step, other_step_c);
 
 					replace_string_with_enum(&step, move);
 					replace_string_with_enum(&others_step, other_step_c);
@@ -836,7 +817,6 @@ int parse_command(char *command,  parameters_struct* parameters_s) {
 		}
 	}
 	
-
 	return counter;
 
 }
@@ -1028,20 +1008,19 @@ void exit_function(exit_thread_param_struct *thread_param) {
 	while (1) {
 		scanf("%s",input);
 		if (strcmp(input, "exit") == 0) {
-			/*close handles and sockets*/
+			/*close handles*/
 			for (int i = 0; i < NUM_OF_WORKER_THREADS; i++) {
-				if(ThreadInputs[i] != NULL)
-					socket_return_val = closesocket(ThreadInputs[i]);
-				if (socket_return_val != 0)////////////////// get return val
-					printf("Error when exiting\n");
-				if (ThreadHandles[i] != NULL)
+
+				if (ThreadHandles[i] != NULL) {
 					return_val = CloseHandle(ThreadHandles[i]);
-				if (return_val == 0)////////////////// get return val
-					printf("Error when exiting\n");
+					if (return_val == 0)////////////////// get return val  close handle returns non zero if its successful
+						printf("Error when exiting\n");
+				}
 			}
+			/* close main socket */
 			main_return_val = closesocket(*thread_param->MainSocket);
 			if (main_return_val != 0)////////////////// get return val
-				printf("Error when exiting\n");
+				printf("Error when exiting %d\n", WSAGetLastError());
 			return 0;
 		}
 	}

@@ -109,7 +109,7 @@ int CreateAndCheckSocket();
 /*	Description: After receiving a response from the server, check which type of message it is.
 	Parameters:	 reponse - the string received from the the server
 	Returns:	 integer representing the message	*/
-int CheckServerResponse(char* response);
+int CheckServerResponse(char* response, char* parameter);
 
 /*	Description: Gets the total length of the valid parameters for a specific message
 	Parameters:	 parameter_1/2/3 - parameters for the message

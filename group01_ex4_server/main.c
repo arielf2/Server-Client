@@ -9,7 +9,6 @@ BOOL   ThreadIndex[NUM_OF_WORKER_THREADS] = { FALSE, FALSE };
 
 
 
-
 int main(int argc, char *argv[]) {
 	int Ind;
 	int Loop;
@@ -27,6 +26,8 @@ int main(int argc, char *argv[]) {
 	// Initialize Winsock.
 	WSADATA wsaData;
 	int StartupRes = WSAStartup(MAKEWORD(2, 2), &wsaData);
+	TransferResult_t SendRes;
+	char SendStr[SEND_STR_SIZE];
 
 
 	if (StartupRes != NO_ERROR)
@@ -112,6 +113,13 @@ int main(int argc, char *argv[]) {
 		if (Ind == NUM_OF_WORKER_THREADS) //no slot is available
 		{
 			printf("No slots available for client, dropping the connection.\n");
+			strcpy(SendStr, "SERVER_DENIED\n");
+
+			SendRes = SendString(SendStr, AcceptSocket);
+
+			if (SendRes == TRNS_FAILED)
+				printf("Service socket error while writing, closing thread.\n");
+
 			closesocket(AcceptSocket); //Closing the socket, dropping the connection.
 		}
 		else
@@ -197,9 +205,9 @@ static DWORD ServiceThread(LPVOID lpParam)
 	while (!Done)
 	{
 		char *AcceptedStr = NULL;
-		if (WaitForMessage(&AcceptedStr,150, *t_socket) == -1) {////
-			printf("Error in wait.\n");
-
+		if (WaitForMessage(&AcceptedStr,150, *t_socket) == -1) {
+			/* TO or error in recive message. close thread*/
+			return 1;
 		}
 		parse_command(AcceptedStr, &parameters_s);
 		
@@ -229,6 +237,7 @@ static DWORD ServiceThread(LPVOID lpParam)
 		}
 		else if (STRINGS_ARE_EQUAL(parameters_s.message_type, "CLIENT_MAIN_MENU"))
 		{
+			
 			strcpy(SendStr, "SERVER_MAIN_MENU\n");
 
 			SendRes = SendString(SendStr, *t_socket);
@@ -509,8 +518,8 @@ static DWORD ServiceThread(LPVOID lpParam)
 							return 1;
 						}
 					}
-					else {//there is not other player
-						strcpy(SendStr, "SERVER_NO_OPPONENTS\n");
+					else {//there is no other player
+						strcpy(SendStr, "SERVER_OPPONENT_QUIT\n");
 						SendRes = SendString(SendStr, *t_socket);
 
 						if (SendRes == TRNS_FAILED)
@@ -609,7 +618,6 @@ static void CleanupWorkerThreads()
 		}
 	}
 }
-
 int check_if_file_exists() {
 	FILE* fp;
 	int l_wait_code = -1;
@@ -1013,14 +1021,17 @@ void exit_function(exit_thread_param_struct *thread_param) {
 
 				if (ThreadHandles[i] != NULL) {
 					return_val = CloseHandle(ThreadHandles[i]);
-					if (return_val == 0)////////////////// get return val  close handle returns non zero if its successful
+					if (return_val == 0)
 						printf("Error when exiting\n");
 				}
 			}
 			/* close main socket */
-			main_return_val = closesocket(*thread_param->MainSocket);
-			if (main_return_val != 0)////////////////// get return val
-				printf("Error when exiting %d\n", WSAGetLastError());
+			if (*thread_param->MainSocket != NULL)
+			{
+				main_return_val = closesocket(*thread_param->MainSocket);
+				if (main_return_val != 0)
+					printf("Error when exiting %d\n", WSAGetLastError());
+			}
 			return 0;
 		}
 	}
@@ -1034,7 +1045,6 @@ int wait_for_another_player(int index, BOOL val) {
 	}
 	return 0;
 }
-
 int WaitForMessage(char **AcceptedString, int wait_period, SOCKET m_socket) {
 	int error = 0;
 
@@ -1060,20 +1070,14 @@ int WaitForMessage(char **AcceptedString, int wait_period, SOCKET m_socket) {
 	if (RecvRes == TRNS_FAILED)
 	{
 		printf("Socket error while trying to write data to socket\n");
-		return 0x555;
+		return -1;
 	}
 	else if (RecvRes == TRNS_DISCONNECTED)
 	{
 		printf("Server closed connection. Bye!\n");
-		return 0x555;
+		return -1;
 	}
-	else
-	{
-		//printf("accepted string is: %s\n", *AcceptedString);
-		//return error;
-	}
-
-	//free(AcceptedStr);
-	//return error;
+	return 0;
+	
 
 }

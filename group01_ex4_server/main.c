@@ -115,7 +115,7 @@ int main(int argc, char *argv[]) {
 		if (Ind == NUM_OF_WORKER_THREADS) //no slot is available
 		{
 			printf("No slots available for client, dropping the connection.\n");
-			if (simple_send_message("SERVER_DENIED\n", AcceptSocket))
+			if (send_message_simple("SERVER_DENIED\n", AcceptSocket))
 				goto server_cleanup_3;
 			closesocket(AcceptSocket); //Closing the socket, dropping the connection.
 		}
@@ -159,8 +159,8 @@ static DWORD ServiceThread(LPVOID lpParam)
 	char message_type[15];
 	char* parameters[4];
 	char user_name[20] = "";
-	char other_user_name[20] = "";
-	char step_c[9] = "";
+	char other_user_name[USER_NAME_LEN] = "";
+	char step_c[STEP_LEN] = "";
 	status status = -1;
 	FILE *fp_game_session = NULL;
 	char game_session_delim = ';';
@@ -177,58 +177,54 @@ static DWORD ServiceThread(LPVOID lpParam)
 	while (!Done)//Wait for message until client leave
 	{
 		char *AcceptedStr = NULL;
-		if (WaitForMessage(&AcceptedStr, TIMEOUT, *t_socket) == -1) {
-			/* TO or error in recieve message. close thread*/
+		if (WaitForMessage(&AcceptedStr, TIMEOUT, *t_socket) == -1) /* TO or error in recieve message. close thread*/
 			return 1;
-		}
 		parse_command(AcceptedStr, &parameters_s);
 		
 		if (STRINGS_ARE_EQUAL(parameters_s.message_type, "CLIENT_REQUEST")) {
-
 			strcpy_s(user_name, 20, parameters_s.param1); 
-			if (simple_send_message("SERVER_APPROVED\n", *t_socket))
+			if (send_message_simple("SERVER_APPROVED\n", *t_socket))
 				goto local_cleanup;
 
-			if (simple_send_message("SERVER_MAIN_MENU\n", *t_socket))
+			if (send_message_simple("SERVER_MAIN_MENU\n", *t_socket))
 				goto local_cleanup;
-			
 		}
 		else if (STRINGS_ARE_EQUAL(parameters_s.message_type, "CLIENT_MAIN_MENU"))
 		{
-			if (simple_send_message("SERVER_MAIN_MENU\n", *t_socket))
+			if (send_message_simple("SERVER_MAIN_MENU\n", *t_socket))
 				goto local_cleanup;
 			
 		}
 		else if (STRINGS_ARE_EQUAL(parameters_s.message_type, "CLIENT_CPU")) {
 			status = CPU;
 			cpu_step = rand_step();
-			if (simple_send_message("SERVER_PLAYER_MOVE_REQUEST\n", *t_socket))
+			if (send_message_simple("SERVER_PLAYER_MOVE_REQUEST\n", *t_socket))
 				goto local_cleanup;
 		}
 		else if (STRINGS_ARE_EQUAL(parameters_s.message_type, "CLIENT_VERSUS")) {
-
 			ThreadIndex[my_index] = 1;
 			if (ThreadIndex[other_index]) {//check if other's bit is 1
 				status = VERSUS;
-				if (simple_send_message("SERVER_INVITE\n", *t_socket))
+				if (send_message_simple("SERVER_INVITE\n", *t_socket))
 					goto local_cleanup;
 
-				if (simple_send_message("SERVER_PLAYER_MOVE_REQUEST\n", *t_socket))
+				if (send_message_simple("SERVER_PLAYER_MOVE_REQUEST\n", *t_socket))
 					goto local_cleanup;
-
 			}
 			else {				
 				//wait for another client for 30 second - wait to see that someone wrote to file
 				if (wait_for_another_player(other_index, 1)) {//there is another player
 					status = VERSUS;
-					if (simple_send_message("SERVER_INVITE\n", *t_socket))
+					if (send_message_simple("SERVER_INVITE\n", *t_socket))
 						goto local_cleanup;
 
-					if (simple_send_message("SERVER_PLAYER_MOVE_REQUEST\n", *t_socket))
+					if (send_message_simple("SERVER_PLAYER_MOVE_REQUEST\n", *t_socket))
 						goto local_cleanup;
 				}
-				else {//there is not other player
-					if (simple_send_message("SERVER_NO_OPPONENTS\n", *t_socket))
+				else {//there is no other player
+					if (send_message_simple("SERVER_NO_OPPONENTS\n", *t_socket))
+						goto local_cleanup;
+					if (send_message_simple("SERVER_MAIN_MENU\n", *t_socket))
 						goto local_cleanup;
 					
 				}
@@ -239,20 +235,17 @@ static DWORD ServiceThread(LPVOID lpParam)
 				char move[50] = "";
 				strcpy_s(move, 50, parameters_s.param1);
 				replace_string_with_enum(&step, move);
-				int winner = -1;
-				winner = find_who_wins(cpu_step, step);
+				int winner = find_who_wins(cpu_step, step);
 				replace_enum_with_string(cpu_step, step_c);
 
 				if (winner == 0) {
-					//sprintf(SendStr, "SERVER_GAME_RESULTS:server;%s;%s;server\n", step_c, parameters_s.param1);
 					sprintf(SendStr, "SERVER_GAME_RESULTS:Server %s %s %s\n", step_c, move, user_name);
-					Done = 0;
+					//Done = 0;
 				}
 				else if (winner == 1) {
 					sprintf(SendStr, "SERVER_GAME_RESULTS:%s %s %s %s\n",user_name, step_c, move, user_name);
 				}
 				else if (winner == 2) {
-					//sprintf(SendStr, "SERVER_GAME_RESULTS:Tie;%s;%s;server\n", step_c, parameters_s.param1);
 					sprintf(SendStr, "SERVER_GAME_RESULTS:Tie %s %s %s\n", step_c, move, user_name);
 				}
 				else 
@@ -282,25 +275,11 @@ static DWORD ServiceThread(LPVOID lpParam)
 
 					replace_string_with_enum(&step, move);
 					replace_string_with_enum(&others_step, other_step_c);
-					win = find_who_wins(others_step, step); 
-					if (win == 0) {
-						replace_enum_with_string(step, step_c);
-						sprintf(SendStr, "SERVER_GAME_RESULTS:%s %s %s %s\n", other_user_name, other_step_c, move, other_user_name);
-					}
-					else if (win == 1) {
-						replace_enum_with_string(step, step_c);
-						sprintf(SendStr, "SERVER_GAME_RESULTS:%s %s %s %s\n", user_name, other_step_c, move, other_user_name);
-					}
-					else if (win == 2) {
-						replace_enum_with_string(step, step_c);
-						sprintf(SendStr, "SERVER_GAME_RESULTS:Tie %s %s %s \n", step_c, move, other_user_name);
-					}
-					else
-						printf("Error in player move\n");
+					create_game_results_message(step, others_step, other_user_name, user_name, SendStr);
+
 				}
 				else 
 				{
-					
 					fp_game_session = fopen("GameSession.txt", "w");//create file
 					fclose(fp_game_session);
 					int win = -1;
@@ -312,41 +291,19 @@ static DWORD ServiceThread(LPVOID lpParam)
 
 					replace_string_with_enum(&step, move);
 					replace_string_with_enum(&others_step, other_step_c);
-					win = find_who_wins(others_step, step);
-					if (win == 0) {
-						replace_enum_with_string(step, step_c);
-					
-						sprintf(SendStr, "SERVER_GAME_RESULTS:%s %s %s %s\n", other_user_name, other_step_c, move, other_user_name);
-					}
-					else if (win == 1) {
-						replace_enum_with_string(step, step_c);
-						sprintf(SendStr, "SERVER_GAME_RESULTS:%s %s %s %s\n", user_name, other_step_c, move, other_user_name);
-					}
-					else if (win == 2) {
-						replace_enum_with_string(step, step_c);
-						sprintf(SendStr, "SERVER_GAME_RESULTS:Tie %s %s %s\n", step_c, move, other_user_name);
-					}
-					else
-						printf("Error in player move\n");
-
+					create_game_results_message(step, others_step, other_user_name, user_name, SendStr);
+			
 					ThreadIndex[my_index] = 0;
 					wait_for_another_player(other_index, 0);//wait for other player to finish read from file
 					if(remove("GameSession.txt") != 0)
 						printf("Error whem removing file.\n"); 
 				}
-
-				
+	
 			}
-
-			SendRes = SendString(SendStr, *t_socket);
-
-			if (SendRes == TRNS_FAILED)
-			{
-				printf("Service socket error while writing, closing thread.\n");
-				closesocket(*t_socket);
-				return 1;
-			}
-			if (simple_send_message("SERVER_GAME_OVER_MENU\n", *t_socket))
+			if (send_message_simple(SendStr, *t_socket))
+				goto local_cleanup;
+			
+			if (send_message_simple("SERVER_GAME_OVER_MENU\n", *t_socket))
 				goto local_cleanup;
 			
 		}
@@ -354,14 +311,14 @@ static DWORD ServiceThread(LPVOID lpParam)
 			if (status == CPU) {//as  client cpu
 				status = CPU;
 				cpu_step = rand_step();
-				if (simple_send_message("SERVER_PLAYER_MOVE_REQUEST\n", *t_socket))
+				if (send_message_simple("SERVER_PLAYER_MOVE_REQUEST\n", *t_socket))
 					goto local_cleanup;
 			}
 			else if (status == VERSUS) {//same as client versus
 				ThreadIndex[my_index] = 1;
 				if (ThreadIndex[other_index]) {//check if other's bit is 1
-					status = VERSUS;//change only here?
-					if (simple_send_message("SERVER_PLAYER_MOVE_REQUEST\n", *t_socket))
+					status = VERSUS;
+					if (send_message_simple("SERVER_PLAYER_MOVE_REQUEST\n", *t_socket))
 						goto local_cleanup;
 				}
 				else {
@@ -369,20 +326,15 @@ static DWORD ServiceThread(LPVOID lpParam)
 					if (wait_for_another_player(other_index, 1)) {//there is another player
 						status = VERSUS;//change only here?
 
-						if (simple_send_message("SERVER_PLAYER_MOVE_REQUEST\n", *t_socket))
+						if (send_message_simple("SERVER_PLAYER_MOVE_REQUEST\n", *t_socket))
 							goto local_cleanup;
 					}
 					else {//there is no other player
 						sprintf(SendStr, "SERVER_OPPONENT_QUIT:%s\n", other_user_name);
-						SendRes = SendString(SendStr, *t_socket);
-
-						if (SendRes == TRNS_FAILED)
-						{
-							printf("Service socket error while writing, closing thread.\n");
-							closesocket(*t_socket);
-							return 1;
-						}
-						if (simple_send_message("SERVER_MAIN_MENU\n", *t_socket))
+						if (send_message_simple(SendStr, *t_socket))
+							goto local_cleanup;
+						
+						if (send_message_simple("SERVER_MAIN_MENU\n", *t_socket))
 							goto local_cleanup;
 					}
 				}
@@ -391,14 +343,9 @@ static DWORD ServiceThread(LPVOID lpParam)
 
 		}
 		else if (STRINGS_ARE_EQUAL(parameters_s.message_type, "CLIENT_DISCONNECT"))
-		{
 			Done = 1;
-		}
 		else
-		{
 			strcpy(SendStr, "I don't understand");
-		}
-
 
 		free(AcceptedStr);
 	}
@@ -867,7 +814,7 @@ int WaitForMessage(char **AcceptedString, int wait_period, SOCKET m_socket) {
 	
 
 }
-int simple_send_message(char message[], SOCKET a_socket) {
+int send_message_simple(char message[], SOCKET a_socket) {
 	char SendStr[SEND_STR_SIZE];
 	TransferResult_t SendRes;
 	strcpy(SendStr, message);
@@ -878,4 +825,22 @@ int simple_send_message(char message[], SOCKET a_socket) {
 	}
 	return 0;
 }
-
+void create_game_results_message(step a_step, step others_step, char other_user_name[], char user_name[], char* SendStr) {
+	int win = -1;
+	char step_c[STEP_LEN] = "";
+	char other_step_c[STEP_LEN] = "";
+	win = find_who_wins(others_step, a_step);
+	replace_enum_with_string(a_step, step_c);
+	replace_enum_with_string(others_step, other_step_c);
+	if (win == 0) {
+		sprintf(SendStr, "SERVER_GAME_RESULTS:%s %s %s %s\n", other_user_name, other_step_c, step_c, other_user_name);
+	}
+	else if (win == 1) {
+		sprintf(SendStr, "SERVER_GAME_RESULTS:%s %s %s %s\n", user_name, other_step_c, step_c, other_user_name);
+	}
+	else if (win == 2) {
+		sprintf(SendStr, "SERVER_GAME_RESULTS:Tie %s %s %s \n", other_step_c, step_c, other_user_name);
+	}
+	else
+		printf("Error in player move\n");
+}

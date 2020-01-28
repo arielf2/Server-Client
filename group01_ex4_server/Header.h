@@ -32,7 +32,8 @@
 #define TIMEOUT 600
 #define SEND_STR_SIZE 350
 #define STRINGS_ARE_EQUAL( Str1, Str2 ) ( strcmp( (Str1), (Str2) ) == 0 )
-
+#define STEP_LEN 9
+#define USER_NAME_LEN 20
 //#include "SharedFuncs.h"
 #include <stdio.h>
 #include <string.h>
@@ -97,15 +98,8 @@ int WaitForMessage(char **AcceptedString, int wait_period, SOCKET m_socket);
 DWORD WINAPI exit_thread_dword(LPVOID lpParam);
 DWORD WINAPI accept_thread_dword(LPVOID lpParam);
 int accept_function(accept_thread_param_struct *thread_param);
-int simple_send_message(char message[], SOCKET* a_socket);
-
-
-
-/*oOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoO*/
-
-
-
-
+int send_message_simple(char message[], SOCKET a_socket);
+void create_game_results_message(step a_step, step others_step, char other_user_name[], char user_name[], char* SendStr);
 
 
 /**

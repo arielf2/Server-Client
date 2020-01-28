@@ -20,7 +20,6 @@ int main(int argc, char *argv[]) {
 	int ListenRes;
 	int ret_val;
 	HANDLE game_session_file_mutex = NULL;
-	SOCKET AcceptSocket = NULL;
 	HANDLE handles_array[2] = {NULL, NULL};
 	exit_thread_param_struct exit_thread_param;
 	accept_thread_param_struct accept_thread_param;
@@ -108,12 +107,11 @@ int main(int argc, char *argv[]) {
 
 	while(exit_state == FALSE)
 	{
-		
 		handles_array[1] = CreateThreadSimple(accept_thread_dword, &accept_thread_param, &accept_thread_id);
 		if (handles_array[1] == NULL)
 			printf("Error when create exit thread\n");
 		
-		wait_code = WaitForMultipleObjects(2, handles_array, FALSE, INFINITE);		if(wait_code != 0 )
+		wait_code = WaitForMultipleObjects(2, handles_array, FALSE, INFINITE);		if(wait_code != 0 && wait_code != 1)
 			printf("Error in wait for multiple error %ld\n", GetLastError());
 		if (exit_state) {//the exit thread finished
 			goto server_cleanup_3;

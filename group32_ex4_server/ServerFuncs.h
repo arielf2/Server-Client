@@ -81,28 +81,154 @@ typedef struct _parameters_struct {
 }parameters_struct;
 /*oOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoO*/
 
+
+/*	Description: Finds empty thread slots for new created threads
+	Parameters: none
+	Returns: index of the threads
+*/
 static int FindFirstUnusedThreadSlot();
+
+/*	Description: Close sockets and thread handles
+	Parameters: none
+	Returns: none
+*/
 static void CleanupWorkerThreads();
+
+/*	Description: Main service thread for each client 
+	Parameters: thread param struct
+	Returns: error code
+*/
 static DWORD ServiceThread(LPVOID lpParam);
+
+/*	Description: Parser for the received message, splits to a message type and parameters
+	Parameters: command - the receive message
+				struct of parameters
+	Returns:	number of parameters
+*/
 int parse_command(char *command,  parameters_struct* parameters_s);
+
+/*	Description: Writes the relevant information to the GameSession.txt file
+	Parameters: The selected move in the game, and the client username
+	Returns: none
+*/
 void write_move_and_username_to_file(char *move, char *username);
+
+/*	Description: replaces the enum type of the selected move with the represntative string
+	Parameters: step enum type (the move), pointer to string that will be updated
+	Returns: none
+*/
 void replace_enum_with_string(step step, char* string);
+
+/*	Description: compare the two moves and decide the winner
+	Parameters: two valid moves as enum types step
+	Returns: number represtning the winner
+*/
+
 int find_who_wins(step first_step, step second_step);
+
+/*	Description: replaces string representing the selected move with the correct step enum type
+	Parameters: string - move as string, step - pointer to the enum type that will be updated
+	Returns: none
+*/
 void replace_string_with_enum(step *step, char* string);
+
+/*	Description: randomize move
+	Parameters: none
+	Returns: integer/enum type representing the step
+*/
 int rand_step();
+
+/*	Description: Simplified Create Thread Function
+	Parameters: thread parameter struct
+				name of thread function
+				pointer to thread id
+	Returns:	handle to the created thread
+*/
+
 HANDLE CreateThreadSimple(LPTHREAD_START_ROUTINE p_start_routine, LPVOID p_thread_parameters, LPDWORD p_thread_id);
+
+/*	Description: Check whether the game session file exists. If not, create the gamesession file
+	Parameters: none
+	Returns: error code
+*/
+
 int check_if_file_exists();
+
+/*	Description: The server function responsible for accepting the exit input in the server console
+	Parameters: thread parameter struct
+	Returns:  error code
+*/
 int exit_function(exit_thread_param_struct *thread_param);
+
+/*	Description: Waits for another player to join the game, through the global array
+	Parameters: index of the global array, value to check
+	Returns: integer representing if another user is found
+*/
+
 int wait_for_another_player(int index, BOOL val);
+
+/*	Description: Wait for the server to send a message. TIMEOUT if no response within (wait period) seconds
+	Parameters:  AcceptedString - pointer to a char pointer, that will eventually point to the received string
+				 int wait period - number of seconds to wait for message receiving.
+				 m_socket - the socket on which a message should arrive
+	Returns:	 error code	*/
+
 int WaitForMessage(char **AcceptedString, int wait_period, SOCKET m_socket);
+
+/*	Description: WINAPI function for the exit thread
+	Parameters: thread parameters struct as void (to be casted)
+	Returns: error code
+*/
+
 DWORD WINAPI exit_thread_dword(LPVOID lpParam);
+
+/*	Description: WINAPI function for the accept thread function
+	Parameters: thread parameters struct as void (to be casted)
+	Returns: error code
+*/
+
 DWORD WINAPI accept_thread_dword(LPVOID lpParam);
+
+/*	Description: accept connection - the function of the accept thread - thread waiting to accept connections to the socket
+	Parameters: thread parameters
+	Returns: error code
+*/
 int accept_function(accept_thread_param_struct *thread_param);
+
+/*	Description: Simplified message sender
+	Parameters: message, socket on which to send the message
+	Returns: error code
+*/
 int send_message_simple(char message[], SOCKET a_socket);
+
+/*	Description: Creates the game result message according to the desired format with message types and parameters
+	Parameters: server/client a move, client b move, other client's username, first client username, pointer to string
+	Returns: none
+*/
 void create_game_results_message(step a_step, step others_step, char other_user_name[], char user_name[], char* SendStr);
+
+/*	Description: Creates session for file
+	Parameters: none
+	Returns: none
+*/
 void create_file_session();
+
+/*	Description: When no opponents are found, send the no opponents message and then the main menu to client
+	Parameters: socket on which to send the message
+	Returns: error code
+*/
 int send_no_opponent_and_main_menu(SOCKET t_socket);
+
+/*	Description: When a client is approved, send the approval message and then the main menu
+	Parameters: socket on which to send the message
+	Returns: error code
+*/
 int send_approved_and_main_menu(SOCKET t_socket);
+
+/*	Description: When two clients are willing to play against each other, send the invite and then move request
+	Parameters: socket on which to send the message
+	Returns: error code
+*/
 int send_invite_and_move_request(SOCKET t_socket);
 
 

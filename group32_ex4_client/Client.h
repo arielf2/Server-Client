@@ -82,7 +82,7 @@ void GetUserMove(char* move);
 	Returns: TIMEOUT_ERROR if timeout was occured during game, else game over */
 int ClientVersusClient();
 
-/*	Description: Wait for the server to send a message. TIMEOUT if no response within 15 seconds
+/*	Description: Wait for the server to send a message. TIMEOUT if no response within (wait period) seconds
 	Parameters:  AcceptedString - pointer to a char pointer, that will eventually point to the received string
 		         int wait period - number of seconds to wait for message receiving.
 	Returns:	 error code	*/

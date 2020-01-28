@@ -1,5 +1,5 @@
 
-#include "Header.h"
+#include "ServerFuncs.h"
 
 HANDLE ThreadHandles[NUM_OF_WORKER_THREADS] = { NULL,NULL };
 SOCKET ThreadInputs[NUM_OF_WORKER_THREADS] = { NULL,NULL };

@@ -7,7 +7,7 @@
 */
 /*oOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoO*/
 
-#include "Header.h"
+#include "ServerFuncs.h"
 
 #include <stdio.h>
 #include <string.h>

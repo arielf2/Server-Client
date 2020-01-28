@@ -32,14 +32,14 @@
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="Header.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="SendRecv.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="..\Share\SharedFuncs.h">
       <Filter>Shared Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="ServerFuncs.h">
+      <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>

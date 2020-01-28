@@ -5,6 +5,7 @@
 int main(int argc, char* argv[]) {
 
 	char username[MAX_USERNAME_LENGTH], port[MAX_PORT_LENGTH], ip_address[MAX_IP_LENGTH];
+	int client_ret_val = 0;
 	if (argc != 4) {
 		printf("The client program requires 3 user arguments: ip_address, port, username");
 		return 1;
@@ -12,9 +13,7 @@ int main(int argc, char* argv[]) {
 	if (ParseCommand(ip_address, port, username, argv)) {
 		return 1;
 	}
-	//ClientVersusServer();
-	MainClient(ip_address, port, username);
-	
+	return MainClient(ip_address, port, username);
 }
 
 

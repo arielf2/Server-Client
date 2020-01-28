@@ -29,7 +29,7 @@
 #pragma comment(lib, "Ws2_32.lib")
 
 
-void MainClient(char* ip_address, char* port, char* username);
+int MainClient(char* ip_address, char* port, char* username);
 
 
 /* ########################################################################### */
@@ -55,11 +55,6 @@ int ShowMainMenu();
 	Return: 1 if user wants to replay, 2 if users wants to return to main menu */
 int ShowPostGameMenu();
 
-/*	Description: Shows the leaderboard menu to the user
-	Parameters: None
-	Returns:	1 if user wants to refresh leaderboard, 2 if user wants to return to main menu */
-int ShowLeaderboardMenu();
-
 
 
 /* ########################################################################### */
@@ -67,14 +62,14 @@ int ShowLeaderboardMenu();
 /* ########################################################################### */
 
 
-/*	Description:
-	Parameters:
-	Returns:	*/
+/*	Description: Runs the flow of the game between the server and the client
+	Parameters: None
+	Returns:	error code */
 int GameFlow();
 
 /*	Description: Initiates a game between client and server, by sending and receiving the messages according to the requirements
 	Parameters: None
-	Returns: 5 if user wants to finish game, 6 for replay, -1 for TIMEOUT error during game */
+	Returns: TIMEOUT_ERROR if timeout was occured during game, else game over */
 int ClientVersusServer();
 
 /*	Description: Gets the chosen move by the user through the keyboard
@@ -84,14 +79,8 @@ void GetUserMove(char* move);
 
 /*	Description: Initiates a game between client and client, by sending and receiving the messages according to the requirements
 	Parameters: None
-	Returns: 5 if user wants to finish game, 6 for replay, -1 for TIMEOUT error during game */
+	Returns: TIMEOUT_ERROR if timeout was occured during game, else game over */
 int ClientVersusClient();
-
-/*	Description: 
-	Parameters:
-	Returns:	*/
-int Leaderboard();
-
 
 /*	Description: Wait for the server to send a message. TIMEOUT if no response within 15 seconds
 	Parameters:  AcceptedString - pointer to a char pointer, that will eventually point to the received string
@@ -99,16 +88,29 @@ int Leaderboard();
 	Returns:	 error code	*/
 int WaitForMessage(char **AcceptedString, int wait_period);
 
+/*	Description: Summarize and print the results of the game to the user, in a game between client and another client
+	Parameters: the Game Results message as received from the server
+	Returns: None */
+void SummarizeGameResultsClientVersus(char *GameResults);
+
+/*	Description: Summarize and print the results of the game to the user, in a game between client and server
+	Parameters: the Game Results message as received from the server
+	Returns: None */
+void SummarizeGameResultsClientCPU(char *GameResults);
 
 /*	Description: Send the client request to the server, with the name of the user
 	Parameters:	username - name of the user, as received from the command line
 	Returns: 0 upon successfull send, error otherwise */
 int SendClientRequest(char *username);
 
+/*	Description: Tries to create a socket (global)
+	Parameters:	None
+	Returns: 0 upon successfull creation, error otherwise */
 int CreateAndCheckSocket();
 
 /*	Description: After receiving a response from the server, check which type of message it is.
 	Parameters:	 reponse - the string received from the the server
+				 parameter - the parameter of the message, if needed
 	Returns:	 integer representing the message	*/
 int CheckServerResponse(char* response, char* parameter);
 
@@ -125,10 +127,4 @@ int CheckServerResponse(char* response, char* parameter);
 */
 int SendMessageToDest(char *message, SOCKET *local_socket);
 
-
-
 int parse_command(char *command, parameters_struct* parameters_s);
-
-
-SummarizeGameResultsClientVersus(char *GameResults);
-SummarizeGameResultsClientCPU(char *GameResults);

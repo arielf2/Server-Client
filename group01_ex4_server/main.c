@@ -7,7 +7,7 @@ HANDLE ThreadHandles[NUM_OF_WORKER_THREADS] = { NULL,NULL };
 SOCKET ThreadInputs[NUM_OF_WORKER_THREADS] = { NULL,NULL };
 BOOL   ThreadIndex[NUM_OF_WORKER_THREADS] = { FALSE, FALSE };
 BOOL   exit_state = FALSE;
-
+SOCKET AcceptSocket = INVALID_SOCKET;
 
 int main(int argc, char *argv[]) {
 	int Ind;
@@ -18,11 +18,16 @@ int main(int argc, char *argv[]) {
 	SOCKADDR_IN service;
 	int bindRes;
 	int ListenRes;
+	int ret_val;
 	HANDLE game_session_file_mutex = NULL;
-	HANDLE exit_thread = NULL;
+	SOCKET AcceptSocket = NULL;
+	HANDLE handles_array[2] = {NULL, NULL};
 	exit_thread_param_struct exit_thread_param;
+	accept_thread_param_struct accept_thread_param;
+	int wait_code = -1;
 	thread_param_struct threads_params[NUM_OF_WORKER_THREADS];
 	int thread_id;
+	int accept_thread_id;
 	// Initialize Winsock.
 	WSADATA wsaData;
 	int StartupRes = WSAStartup(MAKEWORD(2, 2), &wsaData);
@@ -93,19 +98,39 @@ int main(int argc, char *argv[]) {
 		ThreadHandles[Ind] = NULL;
 
 	exit_thread_param.MainSocket = &MainSocket;
-	exit_thread = CreateThreadSimple(exit_thread_dword, &exit_thread_param, &thread_id);
+	accept_thread_param.MainSocket = &MainSocket;
+
+	handles_array[0] = CreateThreadSimple(exit_thread_dword, &exit_thread_param, &thread_id);
+	if(handles_array[0] == NULL)
+		printf("Error when create exit thread\n");
 
 	printf("Waiting for a client to connect...\n");
 
 	while(exit_state == FALSE)
 	{
-		SOCKET AcceptSocket = accept(MainSocket, NULL, NULL);
+		
+		handles_array[1] = CreateThreadSimple(accept_thread_dword, &accept_thread_param, &accept_thread_id);
+		if (handles_array[1] == NULL)
+			printf("Error when create exit thread\n");
+		
+		wait_code = WaitForMultipleObjects(2, handles_array, FALSE, INFINITE);		if(wait_code != 0 )
+			printf("Error in wait for multiple error %ld\n", GetLastError());
+		if (exit_state) {//the exit thread finished
+			goto server_cleanup_3;
+		}
+		
+		//AcceptSocket = accept(MainSocket, NULL, NULL);
 		if (AcceptSocket == INVALID_SOCKET)
 		{
 			printf("Accepting connection with client failed, error %ld\n", WSAGetLastError());
 			goto server_cleanup_3;
 		}
 
+
+		ret_val = CloseHandle(handles_array[1]);//close accept thread
+		if (0 == ret_val)
+			printf("Error when closing handle\n");
+		
 		printf("Client Connected.\n");
 
 		Ind = FindFirstUnusedThreadSlot();
@@ -139,10 +164,15 @@ int main(int argc, char *argv[]) {
 				NULL
 			);
 		}
-	} // for ( Loop = 0; Loop < MAX_LOOPS; Loop++ )
+	}
+
+		
+	 
 
 server_cleanup_3:
-
+	ret_val = CloseHandle(handles_array[0]);//close exit thread
+	if (0 == ret_val)
+		printf("Error when closing exit handle\n");
 	CleanupWorkerThreads();
 
 server_cleanup_2:
@@ -979,7 +1009,7 @@ HANDLE CreateThreadSimple(LPTHREAD_START_ROUTINE p_start_routine, LPVOID p_threa
 }
 DWORD WINAPI exit_thread_dword(LPVOID lpParam)
 {
-	thread_param_struct *thread_param;
+	exit_thread_param_struct *thread_param;
 	int return_val = 0;
 
 	/* Check if lpParam is NULL */
@@ -991,13 +1021,33 @@ DWORD WINAPI exit_thread_dword(LPVOID lpParam)
 	/*
 	* Convert (void *) to parameters type.
 	*/
-	thread_param = (thread_param_struct*)lpParam;
-	exit_function(thread_param);
+	thread_param = (exit_thread_param_struct*)lpParam;
+	return_val = exit_function(thread_param);
+
+
+	return return_val;
+}
+DWORD WINAPI accept_thread_dword(LPVOID lpParam)
+{
+	accept_thread_param_struct *thread_param;
+	int return_val = 0;
+
+	/* Check if lpParam is NULL */
+	if (NULL == lpParam)
+	{
+		return -1;
+	}
+
+	/*
+	* Convert (void *) to parameters type.
+	*/
+	thread_param = (accept_thread_param_struct*)lpParam;
+	accept_function(thread_param);
 
 
 	return 0;
 }
-void exit_function(exit_thread_param_struct *thread_param) {
+int exit_function(exit_thread_param_struct *thread_param) {
 
 	int socket_return_val = -1;
 	int return_val = -1;
@@ -1026,6 +1076,15 @@ void exit_function(exit_thread_param_struct *thread_param) {
 			return 0;
 		}
 	}
+}
+int accept_function(accept_thread_param_struct *thread_param) {
+	AcceptSocket = accept(*thread_param->MainSocket, NULL, NULL);
+	if (AcceptSocket == INVALID_SOCKET)
+	{
+		printf("Accepting connection with client failed, error %ld\n", WSAGetLastError());
+		
+	}
+	return 0;
 }
 int wait_for_another_player(int index, BOOL val) {
 	int i = 0;

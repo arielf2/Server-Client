@@ -111,7 +111,8 @@ int main(int argc, char *argv[]) {
 		if (handles_array[1] == NULL)
 			printf("Error when create exit thread\n");
 		
-		wait_code = WaitForMultipleObjects(2, handles_array, FALSE, INFINITE);		if(wait_code != 0 && wait_code != 1)
+		wait_code = WaitForMultipleObjects(2, handles_array, FALSE, INFINITE);
+		if(wait_code != 0 && wait_code != 1)
 			printf("Error in wait for multiple error %ld\n", GetLastError());
 		if (exit_state) {//the exit thread finished
 			goto server_cleanup_3;

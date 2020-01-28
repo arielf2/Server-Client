@@ -773,7 +773,7 @@ int accept_function(accept_thread_param_struct *thread_param) {
 int wait_for_another_player(int index, BOOL val) {
 	int i = 0;
 	for (i = 0; i < 3; i++) {
-		Sleep(10000); // 10 seconds
+		Sleep(5000); // 5 seconds
 		if (ThreadIndex[index] == val)
 			return 1;
 	}

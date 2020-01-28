@@ -151,19 +151,12 @@ static DWORD ServiceThread(LPVOID lpParam)
 	thread_param_struct *thread_param;
 	int return_val = 0, my_index, other_index, find_other_player = -1, player_number = -1;
 	SOCKET *t_socket;
-	char SendStr[SEND_STR_SIZE];
 	BOOL Done = FALSE;
-	TransferResult_t SendRes;
-	TransferResult_t RecvRes;
+	TransferResult_t SendRes, RecvRes;
 	step step = 0, others_step = 0, cpu_step = 0;
-	char message_type[15];
+	char message_type[15], user_name[20] = "", game_session_delim = ';', step_c[STEP_LEN] = "", other_user_name[USER_NAME_LEN] = "", SendStr[SEND_STR_SIZE];
 	char* parameters[4];
-	char user_name[20] = "";
-	char other_user_name[USER_NAME_LEN] = "";
-	char step_c[STEP_LEN] = "";
 	status status = -1;
-	FILE *fp_game_session = NULL;
-	char game_session_delim = ';';
 	parameters_struct parameters_s;
 
 	//Initialize thread and get local parameters from thread parameters
@@ -180,20 +173,14 @@ static DWORD ServiceThread(LPVOID lpParam)
 		if (WaitForMessage(&AcceptedStr, TIMEOUT, *t_socket) == -1) /* TO or error in recieve message. close thread*/
 			return 1;
 		parse_command(AcceptedStr, &parameters_s);
-		
 		if (STRINGS_ARE_EQUAL(parameters_s.message_type, "CLIENT_REQUEST")) {
 			strcpy_s(user_name, 20, parameters_s.param1); 
-			if (send_message_simple("SERVER_APPROVED\n", *t_socket))
-				goto local_cleanup;
-
-			if (send_message_simple("SERVER_MAIN_MENU\n", *t_socket))
+			if(send_approved_and_main_menu(*t_socket))
 				goto local_cleanup;
 		}
-		else if (STRINGS_ARE_EQUAL(parameters_s.message_type, "CLIENT_MAIN_MENU"))
-		{
+		else if (STRINGS_ARE_EQUAL(parameters_s.message_type, "CLIENT_MAIN_MENU")){
 			if (send_message_simple("SERVER_MAIN_MENU\n", *t_socket))
 				goto local_cleanup;
-			
 		}
 		else if (STRINGS_ARE_EQUAL(parameters_s.message_type, "CLIENT_CPU")) {
 			status = CPU;
@@ -205,28 +192,18 @@ static DWORD ServiceThread(LPVOID lpParam)
 			ThreadIndex[my_index] = 1;
 			if (ThreadIndex[other_index]) {//check if other's bit is 1
 				status = VERSUS;
-				if (send_message_simple("SERVER_INVITE\n", *t_socket))
-					goto local_cleanup;
-
-				if (send_message_simple("SERVER_PLAYER_MOVE_REQUEST\n", *t_socket))
+				if(send_invite_and_move_request(*t_socket))
 					goto local_cleanup;
 			}
-			else {				
-				//wait for another client for 30 second - wait to see that someone wrote to file
+			else {//wait for another client for 30 second - wait to see that someone wrote to file
 				if (wait_for_another_player(other_index, 1)) {//there is another player
 					status = VERSUS;
-					if (send_message_simple("SERVER_INVITE\n", *t_socket))
-						goto local_cleanup;
-
-					if (send_message_simple("SERVER_PLAYER_MOVE_REQUEST\n", *t_socket))
+					if (send_invite_and_move_request(*t_socket))
 						goto local_cleanup;
 				}
 				else {//there is no other player
-					if (send_message_simple("SERVER_NO_OPPONENTS\n", *t_socket))
-						goto local_cleanup;
-					if (send_message_simple("SERVER_MAIN_MENU\n", *t_socket))
-						goto local_cleanup;
-					
+					if(send_no_opponent_and_main_menu(*t_socket))
+						goto local_cleanup;	
 				}
 			}
 		}
@@ -234,78 +211,47 @@ static DWORD ServiceThread(LPVOID lpParam)
 			if (status == CPU) {
 				char move[50] = "";
 				strcpy_s(move, 50, parameters_s.param1);
-				replace_string_with_enum(&step, move);
-				int winner = find_who_wins(cpu_step, step);
 				replace_enum_with_string(cpu_step, step_c);
-
-				if (winner == 0) {
-					sprintf(SendStr, "SERVER_GAME_RESULTS:Server %s %s %s\n", step_c, move, user_name);
-					//Done = 0;
-				}
-				else if (winner == 1) {
-					sprintf(SendStr, "SERVER_GAME_RESULTS:%s %s %s %s\n",user_name, step_c, move, user_name);
-				}
-				else if (winner == 2) {
-					sprintf(SendStr, "SERVER_GAME_RESULTS:Tie %s %s %s\n", step_c, move, user_name);
-				}
-				else 
-					printf("Error in player move\n");
-
+				create_game_results_message(step, cpu_step, "Server", user_name, SendStr);
 			}
-			else if (status == VERSUS) {
-				/*send results when playing against other player */
-				char line_versus[255] = ""; // the line from the file is read into this variable
+			else if (status == VERSUS) {/*send results when playing against other player */
 
-				int i = 0;
-				char other_step_c[10] = "";
-				
+				char line_versus[255] = ""; // the line from the file is read into this variable
+				char other_step_c[10] = "";				
 				char move[50] = "";
 				strcpy_s(move, 50, parameters_s.param1); // keep the user move because param1 becomes gibrish
 				if (check_if_file_exists()) {
-					step = 0;
-					int win = -1;
 					write_move_and_username_to_file(move, user_name);
 					while (check_how_many_lines(line_versus) < 2) {
 						Sleep(1000);
 					}
-					//I read other player move so turn off my biy
-					ThreadIndex[my_index] = 0;
-
+					ThreadIndex[my_index] = 0;//I read other player move so turn off my biy
 					sscanf(line_versus, "%[^;];%s", other_step_c, other_user_name); // get the other player's name and move
-
 					replace_string_with_enum(&step, move);
 					replace_string_with_enum(&others_step, other_step_c);
 					create_game_results_message(step, others_step, other_user_name, user_name, SendStr);
-
 				}
-				else 
-				{
-					fp_game_session = fopen("GameSession.txt", "w");//create file
-					fclose(fp_game_session);
-					int win = -1;
+				else {
+					create_file_session();
 					while (check_how_many_lines(line_versus) < 1) {
 						Sleep(1000);
 					}
 					sscanf(line_versus, "%[^;];%s", other_step_c, other_user_name);
 					write_move_and_username_to_file(move, user_name);	
-
 					replace_string_with_enum(&step, move);
 					replace_string_with_enum(&others_step, other_step_c);
 					create_game_results_message(step, others_step, other_user_name, user_name, SendStr);
-			
 					ThreadIndex[my_index] = 0;
 					wait_for_another_player(other_index, 0);//wait for other player to finish read from file
 					if(remove("GameSession.txt") != 0)
 						printf("Error whem removing file.\n"); 
-				}
-	
+				}	
 			}
 			if (send_message_simple(SendStr, *t_socket))
 				goto local_cleanup;
 			
 			if (send_message_simple("SERVER_GAME_OVER_MENU\n", *t_socket))
-				goto local_cleanup;
-			
+				goto local_cleanup;			
 		}
 		else if (STRINGS_ARE_EQUAL(parameters_s.message_type, "CLIENT_REPLAY")) {
 			if (status == CPU) {//as  client cpu
@@ -321,26 +267,21 @@ static DWORD ServiceThread(LPVOID lpParam)
 					if (send_message_simple("SERVER_PLAYER_MOVE_REQUEST\n", *t_socket))
 						goto local_cleanup;
 				}
-				else {
-					//wait for another client for 30 second - wait to see that someone wrote to file
+				else {//wait for another client for 30 second - wait to see that someone wrote to file
 					if (wait_for_another_player(other_index, 1)) {//there is another player
 						status = VERSUS;//change only here?
-
 						if (send_message_simple("SERVER_PLAYER_MOVE_REQUEST\n", *t_socket))
 							goto local_cleanup;
 					}
 					else {//there is no other player
 						sprintf(SendStr, "SERVER_OPPONENT_QUIT:%s\n", other_user_name);
 						if (send_message_simple(SendStr, *t_socket))
-							goto local_cleanup;
-						
+							goto local_cleanup;						
 						if (send_message_simple("SERVER_MAIN_MENU\n", *t_socket))
 							goto local_cleanup;
 					}
 				}
-
 			}
-
 		}
 		else if (STRINGS_ARE_EQUAL(parameters_s.message_type, "CLIENT_DISCONNECT"))
 			Done = 1;
@@ -650,6 +591,7 @@ void replace_enum_with_string(step step, char* string){
 	}
 }
 void replace_string_with_enum(step *step, char* string) {
+	*step = 0;
 	if(strcmp(string, "SPOCK")==0)
 		*step = SPOCK;
 	else if(strcmp(string, "PAPER")==0)
@@ -843,4 +785,30 @@ void create_game_results_message(step a_step, step others_step, char other_user_
 	}
 	else
 		printf("Error in player move\n");
+}
+int send_invite_and_move_request(SOCKET t_socket) {
+	if (send_message_simple("SERVER_INVITE\n", t_socket))
+		return 1;
+	if (send_message_simple("SERVER_PLAYER_MOVE_REQUEST\n", t_socket))
+		return 1;
+	return 0;
+}
+int send_approved_and_main_menu(SOCKET t_socket) {
+	if (send_message_simple("SERVER_APPROVED\n", t_socket))
+		return 1;
+	if (send_message_simple("SERVER_MAIN_MENU\n", t_socket))
+		return 1;
+	return 0;
+}
+int send_no_opponent_and_main_menu(SOCKET t_socket) {
+	if (send_message_simple("SERVER_NO_OPPONENTS\n", t_socket))
+		return 1;
+	if (send_message_simple("SERVER_MAIN_MENU\n", t_socket))
+		return 1;
+	return 0;
+}
+void create_file_session() {
+	FILE *fp_game_session = NULL;
+	fp_game_session = fopen("GameSession.txt", "w");//create file
+	fclose(fp_game_session);
 }

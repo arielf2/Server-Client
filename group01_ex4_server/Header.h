@@ -100,6 +100,7 @@ DWORD WINAPI accept_thread_dword(LPVOID lpParam);
 int accept_function(accept_thread_param_struct *thread_param);
 int send_message_simple(char message[], SOCKET a_socket);
 void create_game_results_message(step a_step, step others_step, char other_user_name[], char user_name[], char* SendStr);
+void create_file_session();
 
 
 /**

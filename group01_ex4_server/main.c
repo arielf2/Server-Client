@@ -20,7 +20,6 @@ int main(int argc, char *argv[]) {
 	int ListenRes;
 	int ret_val;
 	HANDLE game_session_file_mutex = NULL;
-	SOCKET AcceptSocket = NULL;
 	HANDLE handles_array[2] = {NULL, NULL};
 	exit_thread_param_struct exit_thread_param;
 	accept_thread_param_struct accept_thread_param;
@@ -119,7 +118,6 @@ int main(int argc, char *argv[]) {
 			goto server_cleanup_3;
 		}
 		
-		//AcceptSocket = accept(MainSocket, NULL, NULL);
 		if (AcceptSocket == INVALID_SOCKET)
 		{
 			printf("Accepting connection with client failed, error %ld\n", WSAGetLastError());

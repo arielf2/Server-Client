@@ -3,9 +3,9 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 15
 VisualStudioVersion = 15.0.28307.902
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "group01_ex4_server", "group01_ex4_server\group01_ex4_server.vcxproj", "{0D899926-7D0B-4317-97BC-FFDC3691982E}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "group32_ex4_server", "group32_ex4_server\group32_ex4_server.vcxproj", "{0D899926-7D0B-4317-97BC-FFDC3691982E}"
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "group01_ex4_client", "group01_ex4_client\group01_ex4_client.vcxproj", "{99314E99-D7DE-4008-938F-E713FE2EA257}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "group32_ex4_client", "group32_ex4_client\group32_ex4_client.vcxproj", "{99314E99-D7DE-4008-938F-E713FE2EA257}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

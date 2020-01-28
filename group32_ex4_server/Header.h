@@ -101,6 +101,9 @@ int accept_function(accept_thread_param_struct *thread_param);
 int send_message_simple(char message[], SOCKET a_socket);
 void create_game_results_message(step a_step, step others_step, char other_user_name[], char user_name[], char* SendStr);
 void create_file_session();
+int send_no_opponent_and_main_menu(SOCKET t_socket);
+int send_approved_and_main_menu(SOCKET t_socket);
+int send_invite_and_move_request(SOCKET t_socket);
 
 
 /**

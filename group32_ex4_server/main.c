@@ -12,7 +12,7 @@ int main(int argc, char *argv[]) {
 	unsigned long Address;
 	SOCKADDR_IN service;
 	SOCKET MainSocket = INVALID_SOCKET;
-	HANDLE game_session_file_mutex = NULL, handles_array[2] = {NULL, NULL}/*The first is for exit and second for accept*/;
+	HANDLE game_session_file_mutex = NULL, handles_array[2] = { NULL, NULL }/*The first is for exit and second for accept*/;
 	exit_thread_param_struct exit_thread_param;
 	accept_thread_param_struct accept_thread_param;
 	thread_param_struct threads_params[NUM_OF_WORKER_THREADS];
@@ -46,7 +46,7 @@ int main(int argc, char *argv[]) {
 
 	service.sin_family = AF_INET;
 	service.sin_addr.s_addr = Address;
-	service.sin_port = htons(atoi(argv[1])); 
+	service.sin_port = htons(atoi(argv[1]));
 
 	bindRes = bind(MainSocket, (SOCKADDR*)&service, sizeof(service));
 	if (bindRes == SOCKET_ERROR)
@@ -77,13 +77,13 @@ int main(int argc, char *argv[]) {
 	accept_thread_param.MainSocket = &MainSocket;
 
 	handles_array[0] = CreateThreadSimple(exit_thread_dword, &exit_thread_param, &thread_id);
-	if(handles_array[0] == NULL)
+	if (handles_array[0] == NULL)
 		printf("Error when create exit thread\n");
 
 	//Start waiting for clients
 	printf("Waiting for a client to connect...\n");
 
-	while(exit_state == FALSE)//wait for clients until server got exit input in console
+	while (exit_state == FALSE)//wait for clients until server got exit input in console
 	{
 		handles_array[1] = CreateThreadSimple(accept_thread_dword, &accept_thread_param, &accept_thread_id);
 		if (handles_array[1] == NULL)
@@ -91,7 +91,7 @@ int main(int argc, char *argv[]) {
 
 		//wait for the first between exit and accept threads finish
 		wait_code = WaitForMultipleObjects(2, handles_array, FALSE, INFINITE);
-		if(wait_code != 0 && wait_code != 1)
+		if (wait_code != 0 && wait_code != 1)
 			printf("Error in wait for multiple error %ld\n", GetLastError());
 
 		if (exit_state) {//the exit thread finished
@@ -107,7 +107,7 @@ int main(int argc, char *argv[]) {
 		ret_val = CloseHandle(handles_array[1]);//close accept thread
 		if (0 == ret_val)
 			printf("Error when closing handle\n");
-		
+
 		printf("Client Connected.\n");
 
 		Ind = FindFirstUnusedThreadSlot();
@@ -121,7 +121,7 @@ int main(int argc, char *argv[]) {
 		}
 		else
 		{
-			ThreadInputs[Ind] = AcceptSocket; 
+			ThreadInputs[Ind] = AcceptSocket;
 			threads_params[Ind].MySocket = &(ThreadInputs[Ind]);
 			threads_params[Ind].my_index = Ind;
 			ThreadHandles[Ind] = CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)ServiceThread, &threads_params[Ind], 0, NULL);
@@ -130,13 +130,14 @@ int main(int argc, char *argv[]) {
 
 server_cleanup_3:
 	ret_val = CloseHandle(handles_array[0]);//close exit thread
+	if (handles_array[1] != NULL)
+		CloseHandle(handles_array[1]);
 	if (0 == ret_val)
 		printf("Error when closing exit handle\n");
 	CleanupWorkerThreads();
 
 server_cleanup_2:
-	if (closesocket(MainSocket) == SOCKET_ERROR)
-		printf("Failed to close MainSocket, error %ld. Ending program\n", WSAGetLastError());
+	ret_val = closesocket(MainSocket);
 
 server_cleanup_1:
 	if (WSACleanup() == SOCKET_ERROR)
@@ -174,11 +175,11 @@ static DWORD ServiceThread(LPVOID lpParam)
 			return 1;
 		parse_command(AcceptedStr, &parameters_s);
 		if (STRINGS_ARE_EQUAL(parameters_s.message_type, "CLIENT_REQUEST")) {
-			strcpy_s(user_name, 20, parameters_s.param1); 
-			if(send_approved_and_main_menu(*t_socket))
+			strcpy_s(user_name, 20, parameters_s.param1);
+			if (send_approved_and_main_menu(*t_socket))
 				goto local_cleanup;
 		}
-		else if (STRINGS_ARE_EQUAL(parameters_s.message_type, "CLIENT_MAIN_MENU")){
+		else if (STRINGS_ARE_EQUAL(parameters_s.message_type, "CLIENT_MAIN_MENU")) {
 			if (send_message_simple("SERVER_MAIN_MENU\n", *t_socket))
 				goto local_cleanup;
 		}
@@ -192,7 +193,7 @@ static DWORD ServiceThread(LPVOID lpParam)
 			ThreadIndex[my_index] = 1;
 			if (ThreadIndex[other_index]) {//check if other's bit is 1
 				status = VERSUS;
-				if(send_invite_and_move_request(*t_socket))
+				if (send_invite_and_move_request(*t_socket))
 					goto local_cleanup;
 			}
 			else {//wait for another client for 30 second - wait to see that someone wrote to file
@@ -202,8 +203,8 @@ static DWORD ServiceThread(LPVOID lpParam)
 						goto local_cleanup;
 				}
 				else {//there is no other player
-					if(send_no_opponent_and_main_menu(*t_socket))
-						goto local_cleanup;	
+					if (send_no_opponent_and_main_menu(*t_socket))
+						goto local_cleanup;
 				}
 			}
 		}
@@ -217,7 +218,7 @@ static DWORD ServiceThread(LPVOID lpParam)
 			else if (status == VERSUS) {/*send results when playing against other player */
 
 				char line_versus[255] = ""; // the line from the file is read into this variable
-				char other_step_c[10] = "";				
+				char other_step_c[10] = "";
 				char move[50] = "";
 				strcpy_s(move, 50, parameters_s.param1); // keep the user move because param1 becomes gibrish
 				if (check_if_file_exists()) {
@@ -237,21 +238,21 @@ static DWORD ServiceThread(LPVOID lpParam)
 						Sleep(1000);
 					}
 					sscanf(line_versus, "%[^;];%s", other_step_c, other_user_name);
-					write_move_and_username_to_file(move, user_name);	
+					write_move_and_username_to_file(move, user_name);
 					replace_string_with_enum(&step, move);
 					replace_string_with_enum(&others_step, other_step_c);
 					create_game_results_message(step, others_step, other_user_name, user_name, SendStr);
 					ThreadIndex[my_index] = 0;
 					wait_for_another_player(other_index, 0);//wait for other player to finish read from file
-					if(remove("GameSession.txt") != 0)
-						printf("Error whem removing file.\n"); 
-				}	
+					if (remove("GameSession.txt") != 0)
+						printf("Error whem removing file.\n");
+				}
 			}
 			if (send_message_simple(SendStr, *t_socket))
 				goto local_cleanup;
-			
+
 			if (send_message_simple("SERVER_GAME_OVER_MENU\n", *t_socket))
-				goto local_cleanup;			
+				goto local_cleanup;
 		}
 		else if (STRINGS_ARE_EQUAL(parameters_s.message_type, "CLIENT_REPLAY")) {
 			if (status == CPU) {//as  client cpu
@@ -276,7 +277,7 @@ static DWORD ServiceThread(LPVOID lpParam)
 					else {//there is no other player
 						sprintf(SendStr, "SERVER_OPPONENT_QUIT:%s\n", other_user_name);
 						if (send_message_simple(SendStr, *t_socket))
-							goto local_cleanup;						
+							goto local_cleanup;
 						if (send_message_simple("SERVER_MAIN_MENU\n", *t_socket))
 							goto local_cleanup;
 					}
@@ -290,10 +291,11 @@ static DWORD ServiceThread(LPVOID lpParam)
 
 		free(AcceptedStr);
 	}
-	////////close?
-	local_cleanup:
-		closesocket(*t_socket);
+
 	return 0;
+local_cleanup:
+	closesocket(*t_socket);
+	return 1;
 }
 static int FindFirstUnusedThreadSlot()
 {
@@ -361,7 +363,7 @@ int check_if_file_exists() {
 	}
 
 	fp = fopen("GameSession.txt", "r");
-	
+
 	l_ret_val = ReleaseMutex(l_mutex_handle);
 	if (FALSE == l_ret_val)
 	{
@@ -379,10 +381,10 @@ int check_how_many_lines(char *line) {
 	FILE* fp;
 	int l_wait_code = -1;
 	int l_ret_val = -1;
-	int counter = 0; 
+	int counter = 0;
 	HANDLE l_mutex_handle = NULL;
 
-	
+
 	l_mutex_handle = OpenMutex(SYNCHRONIZE, TRUE, "game_session_file_mutex");
 
 	l_wait_code = WaitForSingleObject(l_mutex_handle, INFINITE);
@@ -402,7 +404,7 @@ int check_how_many_lines(char *line) {
 		return -1;
 	}
 	while (feof(fp) == 0) {
-		
+
 		if (NULL != fgets(line, 30, fp)) {
 			if (!(STRINGS_ARE_EQUAL(line, "")))
 				counter++;
@@ -415,7 +417,7 @@ int check_how_many_lines(char *line) {
 		printf("Error when releasing game_session_file_mutex\n");
 	}
 	return counter;
-	
+
 }
 void write_move_and_username_to_file(char *move, char *username) {
 	FILE* fp;
@@ -446,9 +448,9 @@ void write_move_and_username_to_file(char *move, char *username) {
 	{
 		printf("Error when releasing game_session_file_mutex\n");
 	}
-	
+
 }
-int parse_command(char *command,  parameters_struct* parameters_s) {
+int parse_command(char *command, parameters_struct* parameters_s) {
 	char s[2] = ":";
 	char delim[2] = ";";
 	int counter = 0;
@@ -478,20 +480,20 @@ int parse_command(char *command,  parameters_struct* parameters_s) {
 
 	parameters_s->message_type = strtok(l_string, s);
 	if (counter == 1 & counter_p == 1)
-		parameters_s->param1 = strtok( NULL, s);
+		parameters_s->param1 = strtok(NULL, s);
 	else {
 		parameters_string = strtok(NULL, s);
 		if (counter > 1) {
 			parameters_s->param1 = strtok(parameters_string, delim);
-		if (counter >= 2)
-			parameters_s->param2 = strtok(NULL, delim);
-		if (counter >= 3)
-			parameters_s->param3 = strtok(NULL, delim);
-		if (counter == 4)
-			parameters_s->param4 = strtok(NULL, delim);
+			if (counter >= 2)
+				parameters_s->param2 = strtok(NULL, delim);
+			if (counter >= 3)
+				parameters_s->param3 = strtok(NULL, delim);
+			if (counter == 4)
+				parameters_s->param4 = strtok(NULL, delim);
 		}
 	}
-	
+
 	return counter;
 
 }
@@ -559,12 +561,12 @@ int find_who_wins(step first_step, step second_step) {
 		return 2;
 	else {
 		printf("Error when calc winner\n");
-			return 3;
+		return 3;
 	}
 }
-void replace_enum_with_string(step step, char* string){
+void replace_enum_with_string(step step, char* string) {
 	switch (step) {
-	case SPOCK: {		
+	case SPOCK: {
 		strcpy(string, "SPOCK");
 		break;
 	}
@@ -578,12 +580,12 @@ void replace_enum_with_string(step step, char* string){
 		break;
 
 	}
-	case ROCK:{
+	case ROCK: {
 		strcpy(string, "ROCK");
 		break;
 
 	}
-	case LIZARD:{
+	case LIZARD: {
 		strcpy(string, "LIZARD");
 		break;
 
@@ -592,15 +594,15 @@ void replace_enum_with_string(step step, char* string){
 }
 void replace_string_with_enum(step *step, char* string) {
 	*step = 0;
-	if(strcmp(string, "SPOCK")==0)
+	if (strcmp(string, "SPOCK") == 0)
 		*step = SPOCK;
-	else if(strcmp(string, "PAPER")==0)
+	else if (strcmp(string, "PAPER") == 0)
 		*step = PAPER;
-	else if (strcmp(string, "LIZARD")==0)
+	else if (strcmp(string, "LIZARD") == 0)
 		*step = LIZARD;
-	else if (strcmp(string, "SCISSORS")==0)
+	else if (strcmp(string, "SCISSORS") == 0)
 		*step = SCISSORS;
-	else if (strcmp(string, "ROCK")==0)
+	else if (strcmp(string, "ROCK") == 0)
 		*step = ROCK;
 	else
 		printf("Error in replace_string_with_enum\n");
@@ -680,7 +682,7 @@ int exit_function(exit_thread_param_struct *thread_param) {
 	int main_return_val = -1;
 	char input[5];
 	while (1) {
-		scanf("%s",input);
+		scanf("%s", input);
 		if (strcmp(input, "exit") == 0) {
 			/*close handles*/
 			exit_state = TRUE;
@@ -708,7 +710,7 @@ int accept_function(accept_thread_param_struct *thread_param) {
 	if (AcceptSocket == INVALID_SOCKET)
 	{
 		printf("Accepting connection with client failed, error %ld\n", WSAGetLastError());
-		
+
 	}
 	return 0;
 }
@@ -753,7 +755,7 @@ int WaitForMessage(char **AcceptedString, int wait_period, SOCKET m_socket) {
 		return -1;
 	}
 	return 0;
-	
+
 
 }
 int send_message_simple(char message[], SOCKET a_socket) {

@@ -44,6 +44,8 @@ extern SOCKET ThreadInputs[NUM_OF_WORKER_THREADS];
 extern BOOL   ThreadIndex[NUM_OF_WORKER_THREADS];
 extern HANDLE ThreadHandles[NUM_OF_WORKER_THREADS];
 extern BOOL   exit_state;
+extern SOCKET AcceptSocket;
+
 /*oOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoO*/
 
 typedef enum { TRNS_FAILED, TRNS_DISCONNECTED, TRNS_SUCCEEDED } TransferResult_t;

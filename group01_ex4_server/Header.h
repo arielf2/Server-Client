@@ -82,12 +82,9 @@ typedef struct _parameters_struct {
 
 static int FindFirstUnusedThreadSlot();
 static void CleanupWorkerThreads();
-static DWORD ServiceThread(SOCKET *t_socket);
-int write_in_leader_board(char user_name[], int win);
+static DWORD ServiceThread(LPVOID lpParam);
 int parse_command(char *command,  parameters_struct* parameters_s);
 void write_move_and_username_to_file(char *move, char *username);
-int send_leader_board(SOCKET *t_socket);
-void replace_comma_with_tab(char* line, char* newline);
 void replace_enum_with_string(step step, char* string);
 int find_who_wins(step first_step, step second_step);
 void replace_string_with_enum(step *step, char* string);
@@ -98,9 +95,9 @@ int exit_function(exit_thread_param_struct *thread_param);
 int wait_for_another_player(int index, BOOL val);
 int WaitForMessage(char **AcceptedString, int wait_period, SOCKET m_socket);
 DWORD WINAPI exit_thread_dword(LPVOID lpParam);
-int CompareProtocolMessagesserver(char *str_a, char *str_b);
 DWORD WINAPI accept_thread_dword(LPVOID lpParam);
 int accept_function(accept_thread_param_struct *thread_param);
+int simple_send_message(char message[], SOCKET* a_socket);
 
 
 

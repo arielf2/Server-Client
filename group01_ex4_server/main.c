@@ -1,8 +1,6 @@
 
 #include "Header.h"
 
-
-
 HANDLE ThreadHandles[NUM_OF_WORKER_THREADS] = { NULL,NULL };
 SOCKET ThreadInputs[NUM_OF_WORKER_THREADS] = { NULL,NULL };
 BOOL   ThreadIndex[NUM_OF_WORKER_THREADS] = { FALSE, FALSE };
@@ -10,29 +8,18 @@ BOOL   exit_state = FALSE;
 SOCKET AcceptSocket = INVALID_SOCKET;
 
 int main(int argc, char *argv[]) {
-	int Ind;
-	int Loop;
-	int return_val = -1;
-	SOCKET MainSocket = INVALID_SOCKET;
+	int Ind, Loop, bindRes, ListenRes, ret_val, thread_id, accept_thread_id, return_val = -1, wait_code = -1;
 	unsigned long Address;
 	SOCKADDR_IN service;
-	int bindRes;
-	int ListenRes;
-	int ret_val;
-	HANDLE game_session_file_mutex = NULL;
-	HANDLE handles_array[2] = {NULL, NULL};
+	SOCKET MainSocket = INVALID_SOCKET;
+	HANDLE game_session_file_mutex = NULL, handles_array[2] = {NULL, NULL}/*The first is for exit and second for accept*/;
 	exit_thread_param_struct exit_thread_param;
 	accept_thread_param_struct accept_thread_param;
-	int wait_code = -1;
 	thread_param_struct threads_params[NUM_OF_WORKER_THREADS];
-	int thread_id;
-	int accept_thread_id;
-	// Initialize Winsock.
 	WSADATA wsaData;
 	int StartupRes = WSAStartup(MAKEWORD(2, 2), &wsaData);
 	TransferResult_t SendRes;
 	char SendStr[SEND_STR_SIZE];
-
 
 	if (StartupRes != NO_ERROR)
 	{
@@ -41,16 +28,13 @@ int main(int argc, char *argv[]) {
 		return 1;
 	}
 
-
 	// Create a socket.    
 	MainSocket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
-
 	if (MainSocket == INVALID_SOCKET)
 	{
 		printf("Error at socket( ): %ld\n", WSAGetLastError());
 		goto server_cleanup_1;
 	}
-
 
 	Address = inet_addr(SERVER_ADDRESS_STR);
 	if (Address == INADDR_NONE)
@@ -62,8 +46,7 @@ int main(int argc, char *argv[]) {
 
 	service.sin_family = AF_INET;
 	service.sin_addr.s_addr = Address;
-	service.sin_port = htons(atoi(argv[1])); //The htons function converts a u_short from host to TCP/IP network byte order 
-									   //( which is big-endian ).
+	service.sin_port = htons(atoi(argv[1])); 
 
 	bindRes = bind(MainSocket, (SOCKADDR*)&service, sizeof(service));
 	if (bindRes == SOCKET_ERROR)
@@ -72,30 +55,24 @@ int main(int argc, char *argv[]) {
 		goto server_cleanup_2;
 	}
 
-	/*oOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoO*/
+	//Create game session file mutex
 	game_session_file_mutex = CreateMutex(NULL, FALSE, "game_session_file_mutex");
 	if (game_session_file_mutex == NULL)
 		printf("Error while creating game_session_file_mutex\n");
 
-	/*oOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoO*/
-	return_val = create_leader_board();
-	if (return_val != 0)
-		printf("Error while creating leader_board_file\n");
-	/*oOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoO*/
-
-	// Listen on the Socket.
+	//Listen on the Socket
 	ListenRes = listen(MainSocket, SOMAXCONN);
 	if (ListenRes == SOCKET_ERROR)
 	{
 		printf("Failed listening on socket, error %ld.\n", WSAGetLastError());
 		goto server_cleanup_2;
 	}
-	/*oOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoO*/
 
 	// Initialize all thread handles to NULL, to mark that they have not been initialized
 	for (Ind = 0; Ind < NUM_OF_WORKER_THREADS; Ind++)
 		ThreadHandles[Ind] = NULL;
 
+	//Initialize threads parameters and create exit thread
 	exit_thread_param.MainSocket = &MainSocket;
 	accept_thread_param.MainSocket = &MainSocket;
 
@@ -103,27 +80,29 @@ int main(int argc, char *argv[]) {
 	if(handles_array[0] == NULL)
 		printf("Error when create exit thread\n");
 
+	//Start waiting for clients
 	printf("Waiting for a client to connect...\n");
 
-	while(exit_state == FALSE)
+	while(exit_state == FALSE)//wait for clients until server got exit input in console
 	{
 		handles_array[1] = CreateThreadSimple(accept_thread_dword, &accept_thread_param, &accept_thread_id);
 		if (handles_array[1] == NULL)
 			printf("Error when create exit thread\n");
-		
+
+		//wait for the first between exit and accept threads finish
 		wait_code = WaitForMultipleObjects(2, handles_array, FALSE, INFINITE);
 		if(wait_code != 0 && wait_code != 1)
 			printf("Error in wait for multiple error %ld\n", GetLastError());
+
 		if (exit_state) {//the exit thread finished
 			goto server_cleanup_3;
 		}
-		
+		//exit thread did not finish means accept thread finished first. 
 		if (AcceptSocket == INVALID_SOCKET)
 		{
 			printf("Accepting connection with client failed, error %ld\n", WSAGetLastError());
 			goto server_cleanup_3;
 		}
-
 
 		ret_val = CloseHandle(handles_array[1]);//close accept thread
 		if (0 == ret_val)
@@ -136,36 +115,18 @@ int main(int argc, char *argv[]) {
 		if (Ind == NUM_OF_WORKER_THREADS) //no slot is available
 		{
 			printf("No slots available for client, dropping the connection.\n");
-			strcpy(SendStr, "SERVER_DENIED\n");
-
-			SendRes = SendString(SendStr, AcceptSocket);
-
-			if (SendRes == TRNS_FAILED)
-				printf("Service socket error while writing, closing thread.\n");
-
+			if (simple_send_message("SERVER_DENIED\n", AcceptSocket))
+				goto server_cleanup_3;
 			closesocket(AcceptSocket); //Closing the socket, dropping the connection.
 		}
 		else
 		{
-			ThreadInputs[Ind] = AcceptSocket; // shallow copy: don't close 
-											  // AcceptSocket, instead close 
-											  // ThreadInputs[Ind] when the
-											  // time comes.
+			ThreadInputs[Ind] = AcceptSocket; 
 			threads_params[Ind].MySocket = &(ThreadInputs[Ind]);
 			threads_params[Ind].my_index = Ind;
-			ThreadHandles[Ind] = CreateThread(
-				NULL,
-				0,
-				(LPTHREAD_START_ROUTINE)ServiceThread,
-				&threads_params[Ind],
-				0,
-				NULL
-			);
+			ThreadHandles[Ind] = CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)ServiceThread, &threads_params[Ind], 0, NULL);
 		}
 	}
-
-		
-	 
 
 server_cleanup_3:
 	ret_val = CloseHandle(handles_array[0]);//close exit thread
@@ -180,7 +141,6 @@ server_cleanup_2:
 server_cleanup_1:
 	if (WSACleanup() == SOCKET_ERROR)
 		printf("Failed to close Winsocket, error %ld. Ending program.\n", WSAGetLastError());
-
 	return 0;
 }
 
@@ -188,50 +148,33 @@ server_cleanup_1:
 //Service thread is the thread that opens for each successful client connection and "talks" to the client.
 static DWORD ServiceThread(LPVOID lpParam)
 {
-	
 	thread_param_struct *thread_param;
-	int return_val = 0;
+	int return_val = 0, my_index, other_index, find_other_player = -1, player_number = -1;
 	SOCKET *t_socket;
-	int my_index;
-	int other_index;
 	char SendStr[SEND_STR_SIZE];
-	int find_other_player = -1;
-	int player_number = -1;
 	BOOL Done = FALSE;
 	TransferResult_t SendRes;
 	TransferResult_t RecvRes;
-	step others_step = 0;
-	step cpu_step = 0;
+	step step = 0, others_step = 0, cpu_step = 0;
 	char message_type[15];
 	char* parameters[4];
 	char user_name[20] = "";
 	char other_user_name[20] = "";
-	step step = 0;
 	char step_c[9] = "";
 	status status = -1;
 	FILE *fp_game_session = NULL;
 	char game_session_delim = ';';
 	parameters_struct parameters_s;
 
-	/*oOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoO*/
-
-	/* Check if lpParam is NULL */
+	//Initialize thread and get local parameters from thread parameters
 	if (NULL == lpParam)
-	{
 		return -1;
-	}
-
-	/*
-	* Convert (void *) to parameters type.
-	*/
 	thread_param = (thread_param_struct*)lpParam;
 	t_socket = thread_param->MySocket;
 	my_index = thread_param->my_index;
 	other_index = abs(my_index - 1);
-	/*oOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoO*/
 
-
-	while (!Done)
+	while (!Done)//Wait for message until client leave
 	{
 		char *AcceptedStr = NULL;
 		if (WaitForMessage(&AcceptedStr, TIMEOUT, *t_socket) == -1) {
@@ -240,132 +183,56 @@ static DWORD ServiceThread(LPVOID lpParam)
 		}
 		parse_command(AcceptedStr, &parameters_s);
 		
-		
-		//if (!CompareProtocolMessagesserver(parameters_s.message_type, "CLIENT_REQUEST")) {
-
 		if (STRINGS_ARE_EQUAL(parameters_s.message_type, "CLIENT_REQUEST")) {
 
-			strcpy_s(user_name, 20, parameters_s.param1); // with strcpy user name doesnt become gibrish
-			strcpy(SendStr, "SERVER_APPROVED\n");
-			SendRes = SendString(SendStr, *t_socket);
+			strcpy_s(user_name, 20, parameters_s.param1); 
+			if (simple_send_message("SERVER_APPROVED\n", *t_socket))
+				goto local_cleanup;
 
-			if (SendRes == TRNS_FAILED)
-			{
-				printf("Service socket error while writing, closing thread.\n");
-				closesocket(*t_socket);
-				return 1;
-			}
-			strcpy(SendStr, "SERVER_MAIN_MENU\n");
-
-			SendRes = SendString(SendStr, *t_socket);
-
-			if (SendRes == TRNS_FAILED)
-			{
-				printf("Service socket error while writing, closing thread.\n");
-				closesocket(*t_socket);
-				return 1;
-			}
+			if (simple_send_message("SERVER_MAIN_MENU\n", *t_socket))
+				goto local_cleanup;
+			
 		}
 		else if (STRINGS_ARE_EQUAL(parameters_s.message_type, "CLIENT_MAIN_MENU"))
 		{
+			if (simple_send_message("SERVER_MAIN_MENU\n", *t_socket))
+				goto local_cleanup;
 			
-			strcpy(SendStr, "SERVER_MAIN_MENU\n");
-
-			SendRes = SendString(SendStr, *t_socket);
-
-			if (SendRes == TRNS_FAILED)
-			{
-				printf("Service socket error while writing, closing thread.\n");
-				closesocket(*t_socket);
-				return 1;
-			}
 		}
 		else if (STRINGS_ARE_EQUAL(parameters_s.message_type, "CLIENT_CPU")) {
 			status = CPU;
 			cpu_step = rand_step();
-			strcpy(SendStr, "SERVER_PLAYER_MOVE_REQUEST\n");
-			SendRes = SendString(SendStr, *t_socket);
-
-			if (SendRes == TRNS_FAILED)
-			{
-				printf("Service socket error while writing, closing thread.\n");
-				closesocket(*t_socket);
-				return 1;
-			}
-			
+			if (simple_send_message("SERVER_PLAYER_MOVE_REQUEST\n", *t_socket))
+				goto local_cleanup;
 		}
 		else if (STRINGS_ARE_EQUAL(parameters_s.message_type, "CLIENT_VERSUS")) {
 
 			ThreadIndex[my_index] = 1;
 			if (ThreadIndex[other_index]) {//check if other's bit is 1
-				status = VERSUS;//change only here?
-				strcpy(SendStr, "SERVER_INVITE\n");
-				SendRes = SendString(SendStr, *t_socket);
+				status = VERSUS;
+				if (simple_send_message("SERVER_INVITE\n", *t_socket))
+					goto local_cleanup;
 
-				if (SendRes == TRNS_FAILED)
-				{
-					printf("Service socket error while writing, closing thread.\n");
-					closesocket(*t_socket);
-					return 1;
-				}
-
-				strcpy(SendStr, "SERVER_PLAYER_MOVE_REQUEST\n");
-				SendRes = SendString(SendStr, *t_socket);
-
-				if (SendRes == TRNS_FAILED)
-				{
-					printf("Service socket error while writing, closing thread.\n");
-					closesocket(*t_socket);
-					return 1;
-				}
+				if (simple_send_message("SERVER_PLAYER_MOVE_REQUEST\n", *t_socket))
+					goto local_cleanup;
 
 			}
-			else {
-				
+			else {				
 				//wait for another client for 30 second - wait to see that someone wrote to file
 				if (wait_for_another_player(other_index, 1)) {//there is another player
-					status = VERSUS;//change only here?
-					strcpy(SendStr, "SERVER_INVITE\n");
-					SendRes = SendString(SendStr, *t_socket);
+					status = VERSUS;
+					if (simple_send_message("SERVER_INVITE\n", *t_socket))
+						goto local_cleanup;
 
-					if (SendRes == TRNS_FAILED)
-					{
-						printf("Service socket error while writing, closing thread.\n");
-						closesocket(*t_socket);
-						return 1;
-					}
-
-					strcpy(SendStr, "SERVER_PLAYER_MOVE_REQUEST\n");
-					SendRes = SendString(SendStr, *t_socket);
-
-					if (SendRes == TRNS_FAILED)
-					{
-						printf("Service socket error while writing, closing thread.\n");
-						closesocket(*t_socket);
-						return 1;
-					}
+					if (simple_send_message("SERVER_PLAYER_MOVE_REQUEST\n", *t_socket))
+						goto local_cleanup;
 				}
 				else {//there is not other player
-					strcpy(SendStr, "SERVER_NO_OPPONENTS\n");
-					SendRes = SendString(SendStr, *t_socket);
-
-					if (SendRes == TRNS_FAILED)
-					{
-						printf("Service socket error while writing, closing thread.\n");
-						closesocket(*t_socket);
-						return 1;
-					}
+					if (simple_send_message("SERVER_NO_OPPONENTS\n", *t_socket))
+						goto local_cleanup;
+					
 				}
 			}
-
-		}
-		else if (STRINGS_ARE_EQUAL(parameters_s.message_type, "CLIENT_LEADERBOARD")) {
-			SendRes = send_leader_board(*t_socket);
-			if (SendRes == TRNS_FAILED)
-				{
-					printf("Service socket error while writing, closing thread.\n");
-					closesocket(*t_socket);
-				}
 		}
 		else if (STRINGS_ARE_EQUAL(parameters_s.message_type, "CLIENT_PLAYER_MOVE")) {
 			if (status == CPU) {
@@ -479,62 +346,31 @@ static DWORD ServiceThread(LPVOID lpParam)
 				closesocket(*t_socket);
 				return 1;
 			}
-			strcpy(SendStr, "SERVER_GAME_OVER_MENU\n");
-
-			SendRes = SendString(SendStr, *t_socket);
-
-			if (SendRes == TRNS_FAILED)
-			{
-				printf("Service socket error while writing, closing thread.\n");
-				closesocket(*t_socket);
-				return 1;
-			}
+			if (simple_send_message("SERVER_GAME_OVER_MENU\n", *t_socket))
+				goto local_cleanup;
+			
 		}
 		else if (STRINGS_ARE_EQUAL(parameters_s.message_type, "CLIENT_REPLAY")) {
 			if (status == CPU) {//as  client cpu
 				status = CPU;
 				cpu_step = rand_step();
-				strcpy(SendStr, "SERVER_PLAYER_MOVE_REQUEST\n");
-				SendRes = SendString(SendStr, *t_socket);
-
-				if (SendRes == TRNS_FAILED)
-				{
-					printf("Service socket error while writing, closing thread.\n");
-					closesocket(*t_socket);
-					return 1;
-				}
+				if (simple_send_message("SERVER_PLAYER_MOVE_REQUEST\n", *t_socket))
+					goto local_cleanup;
 			}
-			else if (status == VERSUS) {//same to client versus
+			else if (status == VERSUS) {//same as client versus
 				ThreadIndex[my_index] = 1;
 				if (ThreadIndex[other_index]) {//check if other's bit is 1
 					status = VERSUS;//change only here?
-
-					strcpy(SendStr, "SERVER_PLAYER_MOVE_REQUEST\n");
-					SendRes = SendString(SendStr, *t_socket);
-
-					if (SendRes == TRNS_FAILED)
-					{
-						printf("Service socket error while writing, closing thread.\n");
-						closesocket(*t_socket);
-						return 1;
-					}
-
+					if (simple_send_message("SERVER_PLAYER_MOVE_REQUEST\n", *t_socket))
+						goto local_cleanup;
 				}
 				else {
-
 					//wait for another client for 30 second - wait to see that someone wrote to file
 					if (wait_for_another_player(other_index, 1)) {//there is another player
 						status = VERSUS;//change only here?
 
-						strcpy(SendStr, "SERVER_PLAYER_MOVE_REQUEST\n");
-						SendRes = SendString(SendStr, *t_socket);
-
-						if (SendRes == TRNS_FAILED)
-						{
-							printf("Service socket error while writing, closing thread.\n");
-							closesocket(*t_socket);
-							return 1;
-						}
+						if (simple_send_message("SERVER_PLAYER_MOVE_REQUEST\n", *t_socket))
+							goto local_cleanup;
 					}
 					else {//there is no other player
 						sprintf(SendStr, "SERVER_OPPONENT_QUIT:%s\n", other_user_name);
@@ -546,24 +382,13 @@ static DWORD ServiceThread(LPVOID lpParam)
 							closesocket(*t_socket);
 							return 1;
 						}
-						strcpy(SendStr, "SERVER_MAIN_MENU\n");
-
-						SendRes = SendString(SendStr, *t_socket);
-
-						if (SendRes == TRNS_FAILED)
-						{
-							printf("Service socket error while writing, closing thread.\n");
-							closesocket(*t_socket);
-							return 1;
-						}
+						if (simple_send_message("SERVER_MAIN_MENU\n", *t_socket))
+							goto local_cleanup;
 					}
 				}
 
 			}
 
-		}
-		else if (STRINGS_ARE_EQUAL(parameters_s.message_type, "CLIENT_REFRESH")) {
-			/*bonus*/
 		}
 		else if (STRINGS_ARE_EQUAL(parameters_s.message_type, "CLIENT_DISCONNECT"))
 		{
@@ -578,12 +403,10 @@ static DWORD ServiceThread(LPVOID lpParam)
 		free(AcceptedStr);
 	}
 	////////close?
-	
-	closesocket(*t_socket);
+	local_cleanup:
+		closesocket(*t_socket);
 	return 0;
 }
-
-
 static int FindFirstUnusedThreadSlot()
 {
 	int Ind;
@@ -608,8 +431,6 @@ static int FindFirstUnusedThreadSlot()
 
 	return Ind;
 }
-
-
 static void CleanupWorkerThreads()
 {
 	int Ind;
@@ -708,7 +529,6 @@ int check_how_many_lines(char *line) {
 	return counter;
 	
 }
-
 void write_move_and_username_to_file(char *move, char *username) {
 	FILE* fp;
 	int l_wait_code = -1;
@@ -739,65 +559,6 @@ void write_move_and_username_to_file(char *move, char *username) {
 		printf("Error when releasing game_session_file_mutex\n");
 	}
 	
-}
-
-int write_in_leader_board(char user_name[], int win) {
-	FILE* fp;
-	FILE* w_fp;
-	char s[2] = ",";
-	char start[5] = "Name";
-	char line[255];//fix
-	char* token;
-	char* won;
-	char* lost;
-	char* ratio;
-	int ratio_i = 0;
-	fopen_s(&fp, "LeaderBoard.csv", "r");
-	while (!feof(fp)) {
-		fgets(line, 255, fp);
-		token = strtok(line, s);
-		if (strcmp(start, token) != 0) {//verfiy there cant be user with name "name" 
-
-			if (strcmp(token, user_name) == 0) {
-				won = strtok(NULL, s);
-				lost = strtok(NULL, s);
-				ratio = strtok(NULL, s);
-				if (win == 1)
-					*won = *won + 1;
-				else
-					*lost = *lost + 1;
-				ratio_i = atoi(won) / atoi(lost);
-				w_fp = fp;
-
-				fprintf(w_fp, "%s,%s,%s, %d\n", user_name, won, lost, ratio_i);
-				w_fp = NULL;
-
-			}
-		}
-	}
-	return 0;
-}
-int send_leader_board(SOCKET *t_socket) {
-	FILE* fp;
-	char SendStr[SEND_STR_SIZE];
-	char line_for_send[255] = "";
-	TransferResult_t SendRes;
-	fopen_s(&fp, "LeaderBoard.csv", "r");
-
-	while (feof(fp)) {
-
-		fgets(line_for_send, 255, fp);
-		replace_comma_with_tab(line_for_send, SendStr);
-		SendRes = SendString(SendStr, *t_socket);
-
-		if (SendRes == TRNS_FAILED)
-		{
-			printf("Service socket error while writing, closing thread.\n");
-			closesocket(*t_socket);
-			return SendRes;
-		}
-	}
-	return SendRes;
 }
 int parse_command(char *command,  parameters_struct* parameters_s) {
 	char s[2] = ":";
@@ -845,24 +606,6 @@ int parse_command(char *command,  parameters_struct* parameters_s) {
 	
 	return counter;
 
-}
-int create_leader_board() {
-	FILE* fp;
-	int return_val = -1;
-	return_val = fopen_s(&fp, "LeaderBoard.csv", "w");
-	if (return_val != 0)
-		return 1;
-	fprintf(fp, "Name,Won,Lost,W/L Ratio\n");
-	return 0;
-}
-void replace_comma_with_tab(char* line, char* newline) {
-	int i = 0;
-	while (*(line + i) != '\n')
-	{
-		if (*(line + i) == ';')
-			*(line + i) != '\t';//is it tab?
-		i++;
-	}
 }
 step rand_step() {
 	int r = rand() % 5;
@@ -920,16 +663,12 @@ int find_who_wins(step first_step, step second_step) {
 		return 2;
 	else if (first_step == SPOCK & second_step == SPOCK)
 		return 2;
-
 	else if (first_step == ROCK & second_step == ROCK)
 		return 2;
-
 	else if (first_step == PAPER & second_step == PAPER)
 		return 2;
-
 	else if (first_step == LIZARD & second_step == LIZARD)
 		return 2;
-
 	else {
 		printf("Error when calc winner\n");
 			return 3;
@@ -1104,7 +843,6 @@ int WaitForMessage(char **AcceptedString, int wait_period, SOCKET m_socket) {
 	FD_ZERO(&set);
 	FD_SET(m_socket, &set);
 
-	//char *AcceptedStr = NULL;
 	TransferResult_t RecvRes;
 
 	error = select(0, &set, NULL, NULL, &time);
@@ -1129,33 +867,15 @@ int WaitForMessage(char **AcceptedString, int wait_period, SOCKET m_socket) {
 	
 
 }
-
-
-int CompareProtocolMessagesserver(char *str_a, char *str_b) {
-
-	int i = 0;
-	int len_a = GetLen(str_a);
-	int len_b = GetLen(str_b);
-	if (len_a == 0 || len_b == 0) {
-		//one of the strings is either empty or too long
-		printf("Error in one of the compared strings\n");
-		return 100; //some error code
+int simple_send_message(char message[], SOCKET a_socket) {
+	char SendStr[SEND_STR_SIZE];
+	TransferResult_t SendRes;
+	strcpy(SendStr, message);
+	SendRes = SendString(SendStr, a_socket);
+	if (SendRes == TRNS_FAILED) {
+		printf("Service socket error while writing, closing thread.\n");
+		return 1;
 	}
-
-	if (len_a != len_b) {
-		return 1; //strings are different
-	}
-
-	while (*str_a != '\n' && *str_b != '\n') {
-		if (*str_a != *str_b) {
-			//strings are different
-			return 1;
-			break;
-		}
-		str_a++;
-		str_b++;
-	}
-
 	return 0;
-
 }
+
